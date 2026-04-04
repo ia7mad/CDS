@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { getAllRawQuestions, saveAdminQuestions, resetQuestions } from '../data/questions';
+import { getAllRawQuestions, saveAdminQuestions, resetQuestions, resolveImageUrl } from '../data/questions';
 import { Plus, Edit2, Trash2, Save, RotateCcw, Download, Upload, X, Image, ArrowLeft, ArrowUp, ArrowDown, Copy } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
@@ -219,11 +219,19 @@ export default function AdminPage() {
   const setL10n = (key, lang, val) => setFormData(f => ({ ...f, [key]: { ...f[key], [lang]: val } }));
 
   // ── Actions ──
-  const handleSaveAll = () => {
-    saveAdminQuestions(questions);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+  const persistQuestions = (updated) => {
+    try {
+      saveAdminQuestions(updated);
+      setQuestions(updated);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch (e) {
+      console.error('Failed to save questions:', e);
+      alert('⚠️ Failed to save! The image may be too large for browser storage. Try using a smaller image or a URL instead.');
+    }
   };
+
+  const handleSaveAll = () => persistQuestions(questions);
 
   const handleReset = () => {
     if (window.confirm('Reset to default questions? All custom questions will be lost.')) {
@@ -244,33 +252,37 @@ export default function AdminPage() {
   const openNew = () => { setEditingId('new'); setFormData({ ...EMPTY_QUESTION, id: `q${Date.now()}` }); };
   const duplicate = (q) => {
     const copy = { ...JSON.parse(JSON.stringify(q)), id: `q${Date.now()}` };
-    setQuestions(qs => [...qs, copy]);
+    persistQuestions([...questions, copy]);
   };
 
   const deleteQuestion = (id) => {
-    if (window.confirm('Delete this question?')) setQuestions(qs => qs.filter(q => q.id !== id));
+    if (window.confirm('Delete this question?')) {
+      persistQuestions(questions.filter(q => q.id !== id));
+    }
   };
 
   const moveQuestion = (id, dir) => {
-    setQuestions(qs => {
-      const idx = qs.findIndex(q => q.id === id);
-      const next = idx + dir;
-      if (next < 0 || next >= qs.length) return qs;
-      const a = [...qs];
-      [a[idx], a[next]] = [a[next], a[idx]];
-      return a;
-    });
+    const idx = questions.findIndex(q => q.id === id);
+    const next = idx + dir;
+    if (next < 0 || next >= questions.length) return;
+    const a = [...questions];
+    [a[idx], a[next]] = [a[next], a[idx]];
+    persistQuestions(a);
   };
+
+
 
   const saveForm = () => {
     if (!formData.itemName.en.trim()) { alert('Item name (English) is required.'); return; }
     if (!formData.scenario.en.trim()) { alert('Scenario (English) is required.'); return; }
     if (!formData.correctBin) { alert('Correct bin is required.'); return; }
+    let updated;
     if (editingId === 'new') {
-      setQuestions(qs => [...qs, formData]);
+      updated = [...questions, formData];
     } else {
-      setQuestions(qs => qs.map(q => q.id === editingId ? formData : q));
+      updated = questions.map(q => q.id === editingId ? formData : q);
     }
+    persistQuestions(updated);
     setEditingId(null);
     setFormData(null);
   };
@@ -400,7 +412,7 @@ export default function AdminPage() {
                 fontSize: '2.2rem',
               }}>
                 {formData.imageUrl
-                  ? <img src={formData.imageUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  ? <img src={resolveImageUrl(formData.imageUrl)} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                   : (EMOJI_MAP[formData.itemIcon] || '🗑️')
                 }
               </div>
@@ -507,7 +519,7 @@ export default function AdminPage() {
                       fontSize: '1.4rem',
                     }}>
                       {q.imageUrl
-                        ? <img src={q.imageUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        ? <img src={resolveImageUrl(q.imageUrl)} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                         : (EMOJI_MAP[q.itemIcon] || '🗑️')
                       }
                     </div>

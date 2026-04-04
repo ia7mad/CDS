@@ -1,3 +1,16 @@
+const BASE = import.meta.env.BASE_URL;   // e.g. '/CDS/' in prod, '/' in dev
+
+// Helper: ensure an imageUrl stored in questions always gets the current base prefix
+export const resolveImageUrl = (url) => {
+  if (!url) return '';
+  // Already a full URL (http/https/data:base64) → leave as-is
+  if (/^(https?:|data:)/.test(url)) return url;
+  // Strip any old base prefix so we don't double-prefix
+  const clean = url.replace(/^\/CDS\//, '/');
+  // Prepend current base (Vite guarantees it ends with '/')
+  return BASE + clean.replace(/^\//, '');
+};
+
 export const DEFAULT_QUESTIONS = [
   {
     id: 'q1',
@@ -7,6 +20,7 @@ export const DEFAULT_QUESTIONS = [
     },
     itemName: { en: 'Used Syringe with Needle', ar: 'حقنة مستعملة مع إبرة' },
     itemIcon: 'syringe',
+    imageUrl: 'items/syringe_needle.png',
     category: 'sharps',
     difficulty: 'beginner',
     correctBin: 'sharps',
@@ -24,6 +38,7 @@ export const DEFAULT_QUESTIONS = [
     },
     itemName: { en: 'Clean Plastic Wrapper', ar: 'غلاف بلاستيكي نظيف' },
     itemIcon: 'package',
+    imageUrl: 'items/clean_wrapper.png',
     category: 'general',
     difficulty: 'beginner',
     correctBin: 'general',
@@ -41,6 +56,7 @@ export const DEFAULT_QUESTIONS = [
     },
     itemName: { en: 'Blood-Soaked Gauze', ar: 'ضمادة شاش مشبعة بالدم' },
     itemIcon: 'droplets',
+    imageUrl: 'items/blood_gauze.png',
     category: 'infectious',
     difficulty: 'beginner',
     correctBin: 'infectious',
@@ -58,6 +74,7 @@ export const DEFAULT_QUESTIONS = [
     },
     itemName: { en: 'Partially Used Antibiotic Vial', ar: 'قارورة مضاد حيوي مستخدمة جزئياً' },
     itemIcon: 'pill',
+    imageUrl: 'items/antibiotic_vial.png',
     category: 'pharmaceutical',
     difficulty: 'intermediate',
     correctBin: 'pharmaceutical',
@@ -75,6 +92,7 @@ export const DEFAULT_QUESTIONS = [
     },
     itemName: { en: 'Used Exam Gloves (No Fluids)', ar: 'قفازات فحص مستعملة (بدون سوائل)' },
     itemIcon: 'hand',
+    imageUrl: 'items/exam_gloves.png',
     category: 'general',
     difficulty: 'intermediate',
     correctBin: 'general',
@@ -92,6 +110,7 @@ export const DEFAULT_QUESTIONS = [
     },
     itemName: { en: 'Broken Glass Ampoule', ar: 'أمبولة زجاجية مكسورة' },
     itemIcon: 'glass-water',
+    imageUrl: 'items/glass_ampoule.png',
     category: 'sharps',
     difficulty: 'advanced',
     correctBin: 'sharps',
@@ -109,6 +128,7 @@ export const DEFAULT_QUESTIONS = [
     },
     itemName: { en: 'Food Waste', ar: 'بقايا طعام' },
     itemIcon: 'apple',
+    imageUrl: 'items/food_waste.png',
     category: 'general',
     difficulty: 'beginner',
     correctBin: 'general',
@@ -126,6 +146,7 @@ export const DEFAULT_QUESTIONS = [
     },
     itemName: { en: 'Contaminated N95 Mask', ar: 'كمامة N95 ملوثة' },
     itemIcon: 'shield-alert',
+    imageUrl: 'items/n95_mask.png',
     category: 'infectious',
     difficulty: 'intermediate',
     correctBin: 'infectious',
@@ -143,6 +164,7 @@ export const DEFAULT_QUESTIONS = [
     },
     itemName: { en: 'Used Scalpel Blade', ar: 'شفرة مشرط مستعملة' },
     itemIcon: 'scissors',
+    imageUrl: 'items/scalpel_blade.png',
     category: 'sharps',
     difficulty: 'beginner',
     correctBin: 'sharps',
@@ -160,6 +182,7 @@ export const DEFAULT_QUESTIONS = [
     },
     itemName: { en: 'Empty D5W IV Bag', ar: 'كيس D5W فارغ' },
     itemIcon: 'bag-water',
+    imageUrl: 'items/iv_bag.png',
     category: 'general',
     difficulty: 'advanced',
     correctBin: 'general',
@@ -190,6 +213,7 @@ export const getQuestions = (lang = 'en') => {
     ...q,
     scenario: q.scenario[lang] || q.scenario.en,
     itemName: q.itemName[lang] || q.itemName.en,
-    explanation: q.explanation[lang] || q.explanation.en
+    explanation: q.explanation[lang] || q.explanation.en,
+    imageUrl: resolveImageUrl(q.imageUrl),
   }));
 };
