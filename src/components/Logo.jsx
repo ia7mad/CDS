@@ -1,44 +1,52 @@
 import React from 'react';
 
 /**
- * Official Logo: The Clinical Shield
+ * Official Logo: HWDT (Healthcare Waste Disposal Training)
  * 
- * Design: A professional shield representing safety and containment,
- * featuring a stylized droplet symbolizing clinical waste management.
- * Strictly avoids the "+" symbol for a modern, institutional look.
+ * Design: Features the official PNG logo and rebranded text.
  */
-export default function Logo({ size = 40, color = 'var(--color-primary)', textColor = 'var(--color-text-main)', showText = false }) {
+export default function Logo({ size = 40, textColor = 'var(--color-text-main)', showText = false }) {
+  // Use the Vite public path for the logo
+  const logoPath = `${import.meta.env.BASE_URL}logo.png`.replace(/\/+$/, '') + '/logo.png';
+  // Correction: import.meta.env.BASE_URL already contains the trailing slash if needed.
+  // Actually, standard is:
+  const finalLogoPath = `${import.meta.env.BASE_URL}logo.png`;
+
   return (
-    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
-      <svg
-        width={size}
-        height={size}
-        viewBox="0 0 100 100"
-        fill="none"
-        xmlns="http://www.w3.org/2000/svg"
-        style={{ flexShrink: 0 }}
-      >
-        {/* Shield Shape */}
-        <path
-          d="M50 5L10 20V45C10 70.5 27 92.5 50 95C73 92.5 90 70.5 90 45V20L50 5Z"
-          fill={color}
-        />
-        {/* Stylized Droplet (Clinical Waste Symbolism) */}
-        <path
-          d="M50 30C41.7 30 35 36.7 35 45C35 55 50 70 50 70C50 70 65 55 65 45C65 36.7 58.3 30 50 30ZM50 55C45.6 55 42 51.4 42 47C42 42.6 45.6 39 50 39C54.4 39 58 42.6 58 47C58 51.4 54.4 55 50 55Z"
-          fill="white"
-        />
-      </svg>
+    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '12px' }}>
+      <img 
+        src={finalLogoPath} 
+        alt="HWDT Logo" 
+        style={{ 
+          width: size, 
+          height: size, 
+          objectFit: 'contain',
+          flexShrink: 0
+        }} 
+      />
       {showText && (
-        <span style={{ 
-          fontSize: `${size * 0.4}px`, 
-          fontWeight: '800', 
-          color: textColor,
-          letterSpacing: '-0.02em',
-          lineHeight: '1.1'
-        }}>
-          CDS <span style={{ fontWeight: '400', fontSize: '0.9em', color: 'var(--color-text-muted)' }}>Training</span>
-        </span>
+        <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+          <span style={{ 
+            fontSize: `${size * 0.45}px`, 
+            fontWeight: '900', 
+            color: 'var(--color-primary-dark)',
+            letterSpacing: '-0.03em',
+            lineHeight: '0.9',
+            marginBottom: '2px'
+          }}>
+            HWDT
+          </span>
+          <span style={{ 
+            fontSize: `${size * 0.22}px`, 
+            fontWeight: '600', 
+            color: 'var(--color-text-muted)',
+            letterSpacing: '0.02em',
+            lineHeight: '1',
+            textTransform: 'uppercase'
+          }}>
+            Healthcare Waste Disposal Training
+          </span>
+        </div>
       )}
     </div>
   );

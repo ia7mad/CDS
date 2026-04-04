@@ -54,10 +54,27 @@ export default function ResultsScreen({ score, questionResults, totalQuestions, 
     },
   };
 
-  const handleDownloadCertificate = () => {
+  const handleDownloadCertificate = async () => {
     const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
     const w = doc.internal.pageSize.getWidth();
     const h = doc.internal.pageSize.getHeight();
+
+    // Helper to get DataURL for PNG
+    const getLogoData = () => new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0);
+        resolve(canvas.toDataURL('image/png'));
+      };
+      img.onerror = () => resolve(null);
+      img.src = `${import.meta.env.BASE_URL}logo.png`;
+    });
+
+    const logoData = await getLogoData();
 
     doc.setFillColor(248, 250, 252);
     doc.rect(0, 0, w, h, 'F');
@@ -67,73 +84,51 @@ export default function ResultsScreen({ score, questionResults, totalQuestions, 
     doc.setLineWidth(0.5);
     doc.rect(11, 11, w - 22, h - 22, 'S');
 
+    // Add Logo Image
+    if (logoData) {
+      doc.addImage(logoData, 'PNG', w / 2 - 12, 18, 24, 24);
+    }
+
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(28);
     doc.setTextColor(13, 148, 136);
-
-    // Official Logo: Clinical Shield (Drawn with jsPDF primitives)
-    const logoX = w / 2;
-    const logoY = 22;
-    const logoSize = 14;
-
-    // Shield background (Primary Teal)
-    doc.setFillColor(13, 148, 136);
-    doc.moveTo(logoX, logoY - logoSize);
-    doc.lineTo(logoX - logoSize, logoY - logoSize * 0.6);
-    doc.lineTo(logoX - logoSize, logoY + logoSize * 0.2);
-    doc.curveTo(logoX - logoSize, logoY + logoSize * 0.8, logoX - logoSize * 0.4, logoY + logoSize * 1.2, logoX, logoY + logoSize * 1.4);
-    doc.curveTo(logoX + logoSize * 0.4, logoY + logoSize * 1.2, logoX + logoSize, logoY + logoSize * 0.8, logoX + logoSize, logoY + logoSize * 0.2);
-    doc.lineTo(logoX + logoSize, logoY - logoSize * 0.6);
-    doc.lineTo(logoX, logoY - logoSize);
-    doc.fill();
-
-    // White Droplet inside
-    doc.setFillColor(255, 255, 255);
-    const dropY = logoY + 1;
-    const dropW = 4.5;
-    const dropH = 7;
-    doc.moveTo(logoX, dropY - dropH);
-    doc.curveTo(logoX - dropW, dropY - dropH * 0.3, logoX - dropW, dropY + dropH * 0.6, logoX, dropY + dropH);
-    doc.curveTo(logoX + dropW, dropY + dropH * 0.6, logoX + dropW, dropY - dropH * 0.3, logoX, dropY - dropH);
-    doc.fill();
-
-    doc.text(isRTL ? 'شهادة إتمام التدريب' : 'Certificate of Completion', w / 2, 44, { align: 'center' });
+    doc.text(isRTL ? 'شهادة إتمام التدريب' : 'Certificate of Completion', w / 2, 52, { align: 'center' });
 
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(13);
+    doc.setFontSize(14);
     doc.setTextColor(71, 85, 105);
-    doc.text(isRTL ? 'التدريب على التخلص من النفايات الطبية' : 'Healthcare Waste Disposal Training', w / 2, 52, { align: 'center' });
+    doc.text(isRTL ? 'HWDT - التدريب على التخلص من النفايات الطبية' : 'HWDT - Healthcare Waste Disposal Training', w / 2, 62, { align: 'center' });
 
     doc.setDrawColor(13, 148, 136);
     doc.setLineWidth(0.8);
-    doc.line(40, 58, w - 40, 58);
+    doc.line(40, 68, w - 40, 68);
 
     // "This certifies that"
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(11);
     doc.setTextColor(71, 85, 105);
-    doc.text(isRTL ? 'يُشهد أن' : 'This certifies that', w / 2, 68, { align: 'center' });
+    doc.text(isRTL ? 'يُشهد أن' : 'This certifies that', w / 2, 78, { align: 'center' });
 
     // Recipient name — large and prominent
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(20);
     doc.setTextColor(15, 23, 42);
-    doc.text(userInfo.name || 'Participant', w / 2, 80, { align: 'center' });
+    doc.text(userInfo.name || 'Participant', w / 2, 90, { align: 'center' });
 
     // Profile & department
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(10);
     doc.setTextColor(100, 116, 139);
     const infoLine = [userInfo.profileNumber, userInfo.department].filter(Boolean).join('  ·  ');
-    if (infoLine) doc.text(infoLine, w / 2, 88, { align: 'center' });
+    if (infoLine) doc.text(infoLine, w / 2, 98, { align: 'center' });
 
     // "has successfully completed"
     doc.setFontSize(11);
     doc.setTextColor(71, 85, 105);
     doc.text(
-      isRTL ? 'أتمّ بنجاح برنامج التدريب على التخلص من النفايات الطبية'
-             : 'has successfully completed the Healthcare Waste Disposal Training Program',
-      w / 2, 97, { align: 'center' }
+      isRTL ? 'أتمّ بنجاح برنامج التدريب على التخلص من النفايات الطبية (HWDT)'
+             : 'has successfully completed the Healthcare Waste Disposal Training Program (HWDT)',
+      w / 2, 107, { align: 'center' }
     );
 
     // Score badge
