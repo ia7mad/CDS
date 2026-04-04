@@ -86,14 +86,14 @@ export default function BinDropZone({
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        gap: '10px',
-        padding: '20px 16px',
+        gap: '6px',
+        padding: '16px 12px',
         background: 'var(--color-bg-white)',
         borderRadius: 'var(--radius-lg)',
         border: `2px solid ${borderColor}`,
         boxShadow,
         opacity,
-        transition: 'opacity 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease',
+        transition: 'all 0.2s ease',
         cursor: showFeedback ? 'default' : 'pointer',
         position: 'relative',
         overflow: 'visible',
@@ -101,26 +101,50 @@ export default function BinDropZone({
         color: 'inherit',
       }}
     >
+      {/* Realistic Bin Image */}
       <div style={{
-        width: '52px',
-        height: '64px',
-        background: bin.hexCode,
-        borderRadius: '6px 6px 4px 4px',
-        border: '2px solid rgba(0,0,0,0.15)',
+        height: '80px',
+        width: '100%',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        flexShrink: 0,
+        marginBottom: '4px',
+        position: 'relative',
       }}>
-        <Icon size={22} color="white" strokeWidth={2.5} />
+        {bin.imageUrl ? (
+          <img 
+            src={bin.imageUrl} 
+            alt={bin.name} 
+            style={{ 
+              maxHeight: '100%', 
+              maxWidth: '100%', 
+              objectFit: 'contain',
+              filter: isDragOver ? 'drop-shadow(0 4px 12px rgba(0,0,0,0.15))' : 'none',
+              transition: 'transform 0.2s ease',
+              transform: isDragOver ? 'scale(1.1)' : 'scale(1)',
+            }} 
+          />
+        ) : (
+          <div style={{
+            width: '40px',
+            height: '50px',
+            background: bin.hexCode,
+            borderRadius: '4px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}>
+            <Icon size={20} color="white" />
+          </div>
+        )}
       </div>
 
       <div style={{ textAlign: 'center' }}>
-        <p style={{ fontWeight: '700', color: 'var(--color-text-main)', fontSize: '0.9rem', marginBottom: '2px' }}>
+        <p style={{ fontWeight: '800', color: 'var(--color-text-main)', fontSize: '0.82rem', marginBottom: '1px' }}>
           {bin.name}
         </p>
-        <p style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', lineHeight: 1.4 }}>
-          {bin.description.length > 45 ? bin.description.substring(0, 45) + '…' : bin.description}
+        <p style={{ fontSize: '0.68rem', color: 'var(--color-text-muted)', lineHeight: 1.3 }}>
+          {bin.description.length > 35 ? bin.description.substring(0, 35) + '…' : bin.description}
         </p>
       </div>
 
