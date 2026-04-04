@@ -66,6 +66,17 @@ export default function DraggableItem({
     return () => el.removeEventListener('touchmove', onMove);
   }, []); // only once — uses ref to stay fresh
 
+  // Clean up any stray ghost when the question changes or component unmounts mid-drag
+  useEffect(() => {
+    return () => {
+      if (ghostRef.current) {
+        document.body.removeChild(ghostRef.current);
+        ghostRef.current = null;
+        setIsGrabbing(false);
+      }
+    };
+  }, [question.id]);
+
   const handleTouchStart = (e) => {
     if (showFeedback) return;
     const touch = e.touches[0];
@@ -151,19 +162,22 @@ export default function DraggableItem({
       onDragEnd={!isTouchDevice && !showFeedback ? onDragEnd : undefined}
       onTouchStart={isTouchDevice && !showFeedback ? handleTouchStart : undefined}
       onTouchEnd={isTouchDevice && !showFeedback ? handleTouchEnd : undefined}
+      onContextMenu={e => e.preventDefault()}
       className="animate-fade-in"
       style={{
-        background:    'var(--color-bg-white)',
-        borderRadius:  'var(--radius-lg)',
-        boxShadow:     isGrabbing ? 'var(--shadow-sm)' : 'var(--shadow-md)',
-        padding:       '20px 24px',
-        marginBottom:  '20px',
-        cursor:        showFeedback ? 'default' : 'grab',
-        userSelect:    'none',
-        border:        isGrabbing ? '2px solid var(--color-primary)' : '2px solid var(--color-border)',
-        touchAction:   'none',
-        opacity:       isGrabbing ? 0.45 : 1,
-        transition:    'opacity 0.15s, border-color 0.15s, box-shadow 0.15s',
+        background:              'var(--color-bg-white)',
+        borderRadius:            'var(--radius-lg)',
+        boxShadow:               isGrabbing ? 'var(--shadow-sm)' : 'var(--shadow-md)',
+        padding:                 '20px 24px',
+        marginBottom:            '20px',
+        cursor:                  showFeedback ? 'default' : 'grab',
+        userSelect:              'none',
+        WebkitUserSelect:        'none',
+        WebkitTouchCallout:      'none',
+        border:                  isGrabbing ? '2px solid var(--color-primary)' : '2px solid var(--color-border)',
+        touchAction:             'none',
+        opacity:                 isGrabbing ? 0.45 : 1,
+        transition:              'opacity 0.15s, border-color 0.15s, box-shadow 0.15s',
       }}
     >
       {/* Top row */}
@@ -232,7 +246,8 @@ export default function DraggableItem({
             <img
               src={question.imageUrl}
               alt={question.itemName}
-              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+              draggable={false}
+              style={{ width: '100%', height: '100%', objectFit: 'cover', pointerEvents: 'none', WebkitTouchCallout: 'none' }}
             />
           ) : (
             EMOJI_MAP[question.itemIcon] || '🗑️'

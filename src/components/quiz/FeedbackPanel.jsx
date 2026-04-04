@@ -42,52 +42,55 @@ export default function FeedbackPanel({ isCorrect, isTimeout, question, onNext, 
           )}
         </div>
 
-        {isCorrect && pointsEarned > 0 && (
-          <div style={{
-            background: 'var(--color-success)',
-            color: 'white',
-            borderRadius: 'var(--radius-full)',
-            padding: '4px 12px',
-            fontWeight: '800',
-            fontSize: '0.9rem',
-            whiteSpace: 'nowrap',
-          }}>
-            +{pointsEarned} pts
-          </div>
-        )}
-      </div>
-
-      {/* Explanation */}
-      <p style={{ marginBottom: '8px', lineHeight: 1.65, fontSize: '0.92rem', color: 'var(--color-text-main)' }}>
-        <strong>{t('explanation')}:</strong> {question.explanation}
-      </p>
-      <p style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>
-        📋 {question.standard}
-      </p>
-
-      {/* Next button */}
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '16px' }}>
+        {/* Next button — top right */}
         <button
           onClick={onNext}
           style={{
             display: 'flex',
             alignItems: 'center',
             gap: '6px',
-            padding: '10px 22px',
+            padding: '8px 18px',
             background: 'var(--color-primary)',
             color: 'white',
             border: 'none',
             borderRadius: 'var(--radius-md)',
             fontWeight: '700',
-            fontSize: '0.9rem',
+            fontSize: '0.88rem',
             cursor: 'pointer',
             boxShadow: 'var(--shadow-md)',
+            whiteSpace: 'nowrap',
+            flexShrink: 0,
           }}
         >
           {isLastQuestion ? t('finishAssessment') : t('nextQuestion')}
-          <ChevronRight size={16} />
+          <ChevronRight size={15} />
         </button>
       </div>
+
+      {/* Explanation */}
+      <p style={{ marginBottom: '8px', lineHeight: 1.65, fontSize: '0.92rem', color: 'var(--color-text-main)' }}>
+        <strong>{t('explanation')}:</strong> {question.explanation}
+      </p>
+      <p style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', marginBottom: isCorrect && pointsEarned > 0 ? '12px' : '0' }}>
+        📋 {question.standard}
+      </p>
+
+      {/* Points badge — bottom */}
+      {isCorrect && pointsEarned > 0 && (
+        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+          <div style={{
+            background: 'var(--color-success)',
+            color: 'white',
+            borderRadius: 'var(--radius-full)',
+            padding: '4px 14px',
+            fontWeight: '800',
+            fontSize: '0.9rem',
+            whiteSpace: 'nowrap',
+          }}>
+            +{pointsEarned} pts
+          </div>
+        </div>
+      )}
     </div>
   );
 }
