@@ -13,16 +13,17 @@ import jsPDF from 'jspdf';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Tooltip);
 
-const BIN_NAMES = {
-  general: { name: 'General Waste', color: '#1E293B', emoji: '🗑️' },
-  infectious: { name: 'Infectious Waste', color: '#EAB308', emoji: '⚠️' },
-  sharps: { name: 'Sharps / Biohazard', color: '#EF4444', emoji: '🔴' },
-  pharmaceutical: { name: 'Pharmaceutical Waste', color: '#3B82F6', emoji: '💊' },
-};
+const getBinNames = (lang) => ({
+  general: { name: lang === 'ar' ? 'نفايات عامة' : 'General Waste', color: '#1E293B', emoji: '🗑️' },
+  infectious: { name: lang === 'ar' ? 'نفايات معدية' : 'Infectious Waste', color: '#EAB308', emoji: '⚠️' },
+  sharps: { name: lang === 'ar' ? 'أدوات حادة / خطر بيولوجي' : 'Sharps / Biohazard', color: '#EF4444', emoji: '🔴' },
+  pharmaceutical: { name: lang === 'ar' ? 'نفايات صيدلانية' : 'Pharmaceutical Waste', color: '#3B82F6', emoji: '💊' },
+});
 
 export default function ResultsScreen({ score, questionResults, totalQuestions, bestScore, userInfo = {}, onRestart }) {
   const { t, i18n } = useTranslation();
   const isRTL = i18n.language === 'ar';
+  const binNames = getBinNames(i18n.language);
   const [reviewOpen, setReviewOpen] = useState(false);
 
   const correctCount = questionResults.filter(r => r.correct).length;
@@ -269,8 +270,8 @@ export default function ResultsScreen({ score, questionResults, totalQuestions, 
           {reviewOpen && (
             <div style={{ padding: '16px 24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
               {wrongAnswers.map((r, i) => {
-                const correctBin = BIN_NAMES[r.correctBin];
-                const selectedBinInfo = r.selectedBin === '__timeout__' ? null : BIN_NAMES[r.selectedBin];
+                const correctBin = binNames[r.correctBin];
+                const selectedBinInfo = r.selectedBin === '__timeout__' ? null : binNames[r.selectedBin];
                 return (
                   <div key={r.id} style={{
                     padding: '16px', borderRadius: 'var(--radius-md)',

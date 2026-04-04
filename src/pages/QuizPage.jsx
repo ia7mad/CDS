@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
-import { questions as allQuestions } from '../data/questions';
-import { wasteCategories } from '../data/wasteCategories';
+import { useTranslation } from 'react-i18next';
+import { getQuestions } from '../data/questions';
+import { getWasteCategories } from '../data/wasteCategories';
 import GameHUD from '../components/quiz/GameHUD';
 import TimerBar from '../components/quiz/TimerBar';
 import DraggableItem from '../components/quiz/DraggableItem';
@@ -27,10 +28,13 @@ function calcPoints(timeLeft) {
 }
 
 export default function QuizPage() {
+  const { i18n } = useTranslation();
   const location = useLocation();
   const userInfo = location.state?.userInfo || { name: '', profileNumber: '', department: '' };
 
-  const questions = useMemo(() => shuffle(allQuestions), []);
+  const questionsList = useMemo(() => getQuestions(i18n.language), [i18n.language]);
+  const wasteCategories = useMemo(() => getWasteCategories(i18n.language), [i18n.language]);
+  const questions = useMemo(() => shuffle(questionsList), [questionsList]);
   const bestScore = parseInt(localStorage.getItem(LS_KEY) || '0', 10);
 
   // ── Core state ──
