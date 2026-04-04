@@ -3,7 +3,8 @@ import { Routes, Route, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import QuizPage from './pages/QuizPage';
 import InfoPage from './pages/InfoPage';
-import { BookOpen, ClipboardCheck, User, Hash, Building2 } from 'lucide-react';
+import AdminPage from './pages/AdminPage';
+import { BookOpen, ClipboardCheck, User, Hash, Building2, Settings } from 'lucide-react';
 
 const DEPARTMENTS = [
   'Emergency Department',
@@ -44,20 +45,36 @@ function Navbar() {
       >
         🏥 {t('systemTitle')}
       </h1>
-      <button
-        onClick={toggleLang}
-        style={{
-          padding: '7px 16px',
-          background: 'var(--color-bg-light)',
-          border: '1px solid var(--color-border)',
-          borderRadius: 'var(--radius-md)',
-          fontWeight: '600',
-          fontSize: '0.85rem',
-          cursor: 'pointer',
-        }}
-      >
-        {i18n.language === 'en' ? 'العربية' : 'English'}
-      </button>
+      <div style={{ display: 'flex', gap: '8px' }}>
+        <button
+          onClick={() => navigate('/admin')}
+          style={{
+            padding: '7px 12px',
+            background: 'var(--color-bg-light)',
+            border: '1px solid var(--color-border)',
+            borderRadius: 'var(--radius-md)',
+            cursor: 'pointer',
+            display: 'flex', alignItems: 'center'
+          }}
+          title="Admin Settings"
+        >
+          <Settings size={16} color="var(--color-text-muted)" />
+        </button>
+        <button
+          onClick={toggleLang}
+          style={{
+            padding: '7px 16px',
+            background: 'var(--color-bg-light)',
+            border: '1px solid var(--color-border)',
+            borderRadius: 'var(--radius-md)',
+            fontWeight: '600',
+            fontSize: '0.85rem',
+            cursor: 'pointer',
+          }}
+        >
+          {i18n.language === 'en' ? 'العربية' : 'English'}
+        </button>
+      </div>
     </nav>
   );
 }
@@ -280,6 +297,7 @@ function App() {
           <Route path="/" element={<LandingPage />} />
           <Route path="/learn" element={<InfoPage />} />
           <Route path="/quiz" element={<QuizPage />} />
+          <Route path="/admin" element={<AdminPage />} />
         </Routes>
       </main>
     </div>

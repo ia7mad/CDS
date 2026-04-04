@@ -1,4 +1,4 @@
-export const questionsData = [
+export const DEFAULT_QUESTIONS = [
   {
     id: 'q1',
     scenario: {
@@ -171,8 +171,22 @@ export const questionsData = [
   }
 ];
 
+export const getAllRawQuestions = () => {
+  const stored = localStorage.getItem('cds_admin_questions');
+  return stored ? JSON.parse(stored) : DEFAULT_QUESTIONS;
+};
+
+export const saveAdminQuestions = (questions) => {
+  localStorage.setItem('cds_admin_questions', JSON.stringify(questions));
+};
+
+export const resetQuestions = () => {
+  localStorage.removeItem('cds_admin_questions');
+};
+
 export const getQuestions = (lang = 'en') => {
-  return questionsData.map(q => ({
+  const activeQuestions = getAllRawQuestions();
+  return activeQuestions.map(q => ({
     ...q,
     scenario: q.scenario[lang] || q.scenario.en,
     itemName: q.itemName[lang] || q.itemName.en,
