@@ -70,7 +70,34 @@ export default function ResultsScreen({ score, questionResults, totalQuestions, 
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(28);
     doc.setTextColor(13, 148, 136);
-    doc.text(isRTL ? 'شهادة إتمام التدريب' : 'Certificate of Completion', w / 2, 40, { align: 'center' });
+
+    // Official Logo: Clinical Shield (Drawn with jsPDF primitives)
+    const logoX = w / 2;
+    const logoY = 22;
+    const logoSize = 14;
+
+    // Shield background (Primary Teal)
+    doc.setFillColor(13, 148, 136);
+    doc.moveTo(logoX, logoY - logoSize);
+    doc.lineTo(logoX - logoSize, logoY - logoSize * 0.6);
+    doc.lineTo(logoX - logoSize, logoY + logoSize * 0.2);
+    doc.curveTo(logoX - logoSize, logoY + logoSize * 0.8, logoX - logoSize * 0.4, logoY + logoSize * 1.2, logoX, logoY + logoSize * 1.4);
+    doc.curveTo(logoX + logoSize * 0.4, logoY + logoSize * 1.2, logoX + logoSize, logoY + logoSize * 0.8, logoX + logoSize, logoY + logoSize * 0.2);
+    doc.lineTo(logoX + logoSize, logoY - logoSize * 0.6);
+    doc.lineTo(logoX, logoY - logoSize);
+    doc.fill();
+
+    // White Droplet inside
+    doc.setFillColor(255, 255, 255);
+    const dropY = logoY + 1;
+    const dropW = 4.5;
+    const dropH = 7;
+    doc.moveTo(logoX, dropY - dropH);
+    doc.curveTo(logoX - dropW, dropY - dropH * 0.3, logoX - dropW, dropY + dropH * 0.6, logoX, dropY + dropH);
+    doc.curveTo(logoX + dropW, dropY + dropH * 0.6, logoX + dropW, dropY - dropH * 0.3, logoX, dropY - dropH);
+    doc.fill();
+
+    doc.text(isRTL ? 'شهادة إتمام التدريب' : 'Certificate of Completion', w / 2, 44, { align: 'center' });
 
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(13);

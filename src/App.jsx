@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import QuizPage from './pages/QuizPage';
 import InfoPage from './pages/InfoPage';
 import AdminPage from './pages/AdminPage';
+import Logo from './components/Logo';
 import { BookOpen, ClipboardCheck, User, Hash, Building2, Settings } from 'lucide-react';
 
 const DEPARTMENTS = [
@@ -41,12 +42,9 @@ function Navbar() {
       justifyContent: 'space-between',
       alignItems: 'center',
     }}>
-      <h1
-        onClick={() => navigate('/')}
-        style={{ cursor: 'pointer', fontSize: '1.1rem', color: 'var(--color-primary-dark)', margin: 0, fontWeight: '700' }}
-      >
-        🏥 {t('systemTitle')}
-      </h1>
+      <div onClick={() => navigate('/')} style={{ cursor: 'pointer' }}>
+        <Logo size={32} showText={true} />
+      </div>
       <div style={{ display: 'flex', gap: '8px' }}>
         <button
           onClick={() => navigate('/admin')}
@@ -139,7 +137,9 @@ function LandingPage() {
     <div className="container" style={{ maxWidth: '580px', padding: '40px 20px' }}>
       {/* Hero */}
       <div style={{ textAlign: 'center', marginBottom: '32px' }}>
-        <div style={{ fontSize: '3rem', marginBottom: '10px' }}>🏥</div>
+        <div style={{ marginBottom: '16px' }}>
+          <Logo size={80} />
+        </div>
         <h2 style={{ fontSize: '1.75rem', fontWeight: '800', color: 'var(--color-text-main)', marginBottom: '10px' }}>
           Healthcare Waste Disposal Training
         </h2>
