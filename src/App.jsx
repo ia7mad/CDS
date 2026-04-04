@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Routes, Route, useNavigate } from 'react-router-dom';
+import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import QuizPage from './pages/QuizPage';
 import InfoPage from './pages/InfoPage';
@@ -23,6 +23,8 @@ const DEPARTMENTS = [
 function Navbar() {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
+  const location = useLocation();
+  const isLanding = location.pathname === '/';
 
   const toggleLang = () => {
     const newLang = i18n.language === 'en' ? 'ar' : 'en';
@@ -60,20 +62,22 @@ function Navbar() {
         >
           <Settings size={16} color="var(--color-text-muted)" />
         </button>
-        <button
-          onClick={toggleLang}
-          style={{
-            padding: '7px 16px',
-            background: 'var(--color-bg-light)',
-            border: '1px solid var(--color-border)',
-            borderRadius: 'var(--radius-md)',
-            fontWeight: '600',
-            fontSize: '0.85rem',
-            cursor: 'pointer',
-          }}
-        >
-          {i18n.language === 'en' ? 'العربية' : 'English'}
-        </button>
+        {isLanding && (
+          <button
+            onClick={toggleLang}
+            style={{
+              padding: '7px 16px',
+              background: 'var(--color-bg-light)',
+              border: '1px solid var(--color-border)',
+              borderRadius: 'var(--radius-md)',
+              fontWeight: '600',
+              fontSize: '0.85rem',
+              cursor: 'pointer',
+            }}
+          >
+            {i18n.language === 'en' ? 'العربية' : 'English'}
+          </button>
+        )}
       </div>
     </nav>
   );

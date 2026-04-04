@@ -25,5 +25,16 @@
   "reviewWrongAnswers": "Review Wrong Answers",
   "correctAnswer": "Correct Answer",
   "yourAnswer": "Your Answer",
-  "timeout": "Timed Out"
+  "timeout": "Timed Out",
+  "howToPlayTitle": "How to Play",
+  "howToPlaySub": "Read the instructions below before starting your assessment.",
+  "step1Title": "Read the scenario",
+  "step1Body": "Each question presents a waste item in a clinical context. Identify which of the four bins it belongs in.",
+  "step2TitleTouch": "Hold & drag the item",
+  "step2BodyTouch": "Press and hold the item card, then drag it onto the correct colored bin below. Release to drop.",
+  "step2TitleDesktop": "Drag or click a bin",
+  "step2BodyDesktop": "Drag the item card into the correct bin, or simply click the bin directly.",
+  "step3Title": "Race the clock",
+  "step3Body": "You have 20 seconds per question. Answering faster earns more bonus points on top of the base 100.",
+  "gotItStart": "Got it — Start!"
 }

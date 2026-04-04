@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import { GripVertical, Hand } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
@@ -32,6 +32,7 @@ export default function DraggableItem({
 }) {
   const { t } = useTranslation();
   const difficultyColor = DIFFICULTY_COLOR[question.difficulty] || 'var(--color-text-muted)';
+  const [isGrabbing, setIsGrabbing] = useState(false);
 
   const dragRef = useRef(null);
   const ghostRef = useRef(null);
@@ -51,6 +52,7 @@ export default function DraggableItem({
       e.preventDefault(); // block scroll
 
       const touch = e.touches[0];
+      // Position ghost so finger sits below the bottom-center of the ghost
       ghostRef.current.style.left = `${touch.clientX - offsetRef.current.x}px`;
       ghostRef.current.style.top  = `${touch.clientY - offsetRef.current.y}px`;
 
@@ -67,32 +69,50 @@ export default function DraggableItem({
   const handleTouchStart = (e) => {
     if (showFeedback) return;
     const touch = e.touches[0];
-    const rect  = e.currentTarget.getBoundingClientRect();
 
-    // Remember where the finger landed relative to the card top-left
+    // Ghost width/height constants used for centering
+    const GHOST_W = 240;
+    const GHOST_H = 76;
+
+    // Finger sits 12px below the bottom-center of the ghost
     offsetRef.current = {
-      x: touch.clientX - rect.left,
-      y: touch.clientY - rect.top,
+      x: GHOST_W / 2,
+      y: GHOST_H + 12,
     };
 
-    // Clone the card as a floating ghost
-    const ghost = e.currentTarget.cloneNode(true);
+    // Build a compact ghost showing only the item icon + name (not the whole card)
+    const ghost = document.createElement('div');
+
+    const iconHtml = question.imageUrl
+      ? `<img src="${question.imageUrl}" alt="" style="width:100%;height:100%;object-fit:cover;" />`
+      : `<span style="font-size:1.8rem;line-height:1;">${EMOJI_MAP[question.itemIcon] || '🗑️'}</span>`;
+
+    ghost.innerHTML = `
+      <div style="display:flex;align-items:center;gap:14px;padding:14px 18px;">
+        <div style="width:48px;height:48px;flex-shrink:0;border-radius:50%;background:#f8fafc;border:2px solid #e2e8f0;overflow:hidden;display:flex;align-items:center;justify-content:center;">
+          ${iconHtml}
+        </div>
+        <span style="font-weight:800;font-size:0.95rem;color:#1e293b;font-family:inherit;line-height:1.3;max-width:140px;">${question.itemName}</span>
+      </div>
+    `;
+
     Object.assign(ghost.style, {
       position:      'fixed',
-      left:          `${rect.left}px`,
-      top:           `${rect.top}px`,
-      width:         `${rect.width}px`,
-      margin:        '0',
+      left:          `${touch.clientX - GHOST_W / 2}px`,
+      top:           `${touch.clientY - GHOST_H - 12}px`,
+      width:         `${GHOST_W}px`,
       zIndex:        '9999',
       pointerEvents: 'none',
-      opacity:       '0.88',
-      transform:     'scale(1.04) rotate(1.5deg)',
-      boxShadow:     '0 24px 48px rgba(0,0,0,0.28)',
+      background:    'white',
+      borderRadius:  '16px',
+      boxShadow:     '0 20px 50px rgba(0,0,0,0.3), 0 0 0 2.5px #0d9488',
+      transform:     'scale(1.06) rotate(2deg)',
       transition:    'none',
-      borderRadius:  '12px',
     });
+
     document.body.appendChild(ghost);
     ghostRef.current = ghost;
+    setIsGrabbing(true);
     onDragStart();
   };
 
@@ -102,6 +122,7 @@ export default function DraggableItem({
     const touch = e.changedTouches[0];
     document.body.removeChild(ghostRef.current);
     ghostRef.current = null;
+    setIsGrabbing(false);
 
     // Find the bin under the lifted finger
     const under = document.elementFromPoint(touch.clientX, touch.clientY);
@@ -134,13 +155,15 @@ export default function DraggableItem({
       style={{
         background:    'var(--color-bg-white)',
         borderRadius:  'var(--radius-lg)',
-        boxShadow:     'var(--shadow-md)',
+        boxShadow:     isGrabbing ? 'var(--shadow-sm)' : 'var(--shadow-md)',
         padding:       '20px 24px',
         marginBottom:  '20px',
-        cursor:        showFeedback ? 'default' : isTouchDevice ? 'grab' : 'grab',
+        cursor:        showFeedback ? 'default' : 'grab',
         userSelect:    'none',
-        border:        '2px solid var(--color-border)',
-        touchAction:   'none', // tell browser we handle touch ourselves
+        border:        isGrabbing ? '2px solid var(--color-primary)' : '2px solid var(--color-border)',
+        touchAction:   'none',
+        opacity:       isGrabbing ? 0.45 : 1,
+        transition:    'opacity 0.15s, border-color 0.15s, box-shadow 0.15s',
       }}
     >
       {/* Top row */}

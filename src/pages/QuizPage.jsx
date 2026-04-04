@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { GripVertical, Hand, Clock, Layers } from 'lucide-react';
 import { getQuestions } from '../data/questions';
 import { getWasteCategories } from '../data/wasteCategories';
 import GameHUD from '../components/quiz/GameHUD';
@@ -28,7 +29,7 @@ function calcPoints(timeLeft) {
 }
 
 export default function QuizPage() {
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation();
   const location = useLocation();
   const userInfo = location.state?.userInfo || { name: '', profileNumber: '', department: '' };
 
@@ -50,13 +51,16 @@ export default function QuizPage() {
 
   // ── Timer ──
   const [timeLeft, setTimeLeft] = useState(MAX_TIME);
-  const [timerActive, setTimerActive] = useState(true);
+  const [timerActive, setTimerActive] = useState(false); // starts only after instructions dismissed
 
   // ── Animations ──
   const [animatingBinId, setAnimatingBinId] = useState(null);
   const [animationType, setAnimationType] = useState(null);
   const [showScreenFlash, setShowScreenFlash] = useState(false);
   const [floatingPoint, setFloatingPoint] = useState(null);
+
+  // ── Instructions ──
+  const [showInstructions, setShowInstructions] = useState(true);
 
   // ── Drag ──
   const [isTouchDevice, setIsTouchDevice] = useState(false);
@@ -69,11 +73,11 @@ export default function QuizPage() {
 
   // ── Timer countdown ──
   useEffect(() => {
-    if (!timerActive || showFeedback || isFinished) return;
+    if (!timerActive || showFeedback || isFinished || showInstructions) return;
     if (timeLeft <= 0) { handleTimeout(); return; }
     const id = setTimeout(() => setTimeLeft(t => t - 1), 1000);
     return () => clearTimeout(id);
-  }, [timeLeft, timerActive, showFeedback, isFinished]);
+  }, [timeLeft, timerActive, showFeedback, isFinished, showInstructions]);
 
   const triggerAnimation = (binId, type, points) => {
     setAnimatingBinId(binId);
@@ -198,8 +202,104 @@ export default function QuizPage() {
   const isCorrect = selectedBin === currentQuestion.correctBin;
   const isTimeout = selectedBin === '__timeout__';
 
+  const steps = [
+    {
+      icon: <Layers size={22} color="var(--color-primary)" />,
+      title: t('step1Title'),
+      body: t('step1Body'),
+    },
+    {
+      icon: isTouchDevice
+        ? <Hand size={22} color="var(--color-accent)" />
+        : <GripVertical size={22} color="var(--color-accent)" />,
+      title: isTouchDevice ? t('step2TitleTouch') : t('step2TitleDesktop'),
+      body:  isTouchDevice ? t('step2BodyTouch')  : t('step2BodyDesktop'),
+    },
+    {
+      icon: <Clock size={22} color="var(--color-danger)" />,
+      title: t('step3Title'),
+      body: t('step3Body'),
+    },
+  ];
+
   return (
     <div className="container" style={{ maxWidth: '860px', marginTop: '20px' }}>
+
+      {/* ── Instructions overlay ── */}
+      {showInstructions && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 200,
+          background: 'rgba(15,23,42,0.65)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          padding: '20px',
+          backdropFilter: 'blur(3px)',
+        }}>
+          <div style={{
+            background: 'var(--color-bg-white)',
+            borderRadius: '20px',
+            padding: '32px 28px',
+            maxWidth: '460px',
+            width: '100%',
+            boxShadow: '0 32px 80px rgba(0,0,0,0.35)',
+          }}>
+            <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+              <div style={{ fontSize: '2.4rem', marginBottom: '10px' }}>🗑️</div>
+              <h2 style={{ fontSize: '1.3rem', fontWeight: '800', color: 'var(--color-text-main)', margin: '0 0 6px' }}>
+                {t('howToPlayTitle')}
+              </h2>
+              <p style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)', margin: 0 }}>
+                {t('howToPlaySub')}
+              </p>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginBottom: '28px' }}>
+              {steps.map((step, i) => (
+                <div key={i} style={{
+                  display: 'flex', alignItems: 'flex-start', gap: '14px',
+                  background: 'var(--color-bg-light)',
+                  borderRadius: '12px',
+                  padding: '14px 16px',
+                }}>
+                  <div style={{
+                    width: '40px', height: '40px', flexShrink: 0,
+                    borderRadius: '50%', background: 'var(--color-bg-white)',
+                    boxShadow: 'var(--shadow-sm)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  }}>
+                    {step.icon}
+                  </div>
+                  <div>
+                    <p style={{ fontWeight: '700', fontSize: '0.9rem', color: 'var(--color-text-main)', margin: '0 0 3px' }}>
+                      {step.title}
+                    </p>
+                    <p style={{ fontSize: '0.82rem', color: 'var(--color-text-muted)', margin: 0, lineHeight: 1.55 }}>
+                      {step.body}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <button
+              onClick={() => { setShowInstructions(false); setTimerActive(true); }}
+              style={{
+                width: '100%',
+                padding: '14px',
+                background: 'var(--color-primary)',
+                color: 'white',
+                border: 'none',
+                borderRadius: 'var(--radius-md)',
+                fontWeight: '800',
+                fontSize: '1rem',
+                cursor: 'pointer',
+                boxShadow: '0 4px 14px rgba(13,148,136,0.35)',
+              }}
+            >
+              {t('gotItStart')}
+            </button>
+          </div>
+        </div>
+      )}
       {showScreenFlash && <div className="screen-flash-red" />}
 
       {floatingPoint && (
