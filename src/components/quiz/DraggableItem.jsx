@@ -202,13 +202,18 @@ export default function DraggableItem({
           display:        'flex',
           alignItems:     'center',
           justifyContent: 'center',
+          fontSize:       '2.2rem',
+          lineHeight:     1,
         }}>
-          <img 
-            src={`${import.meta.env.BASE_URL}items/${question.itemIcon}.jpg`} 
-            alt={question.itemName} 
-            style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
-            onError={(e) => { e.target.onerror = null; e.target.src = 'https://loremflickr.com/400/400/medical'; }}
-          />
+          {question.imageUrl ? (
+            <img
+              src={question.imageUrl}
+              alt={question.itemName}
+              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+            />
+          ) : (
+            EMOJI_MAP[question.itemIcon] || '🗑️'
+          )}
         </div>
 
         <div>
