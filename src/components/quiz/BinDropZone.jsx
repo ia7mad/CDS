@@ -74,6 +74,7 @@ export default function BinDropZone({
   return (
     <button
       ref={ref}
+      data-bin-id={bin.id}
       onClick={() => !showFeedback && onClick(bin.id)}
       onDragOver={handleDragOver}
       onDragEnter={handleDragEnter}

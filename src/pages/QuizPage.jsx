@@ -9,7 +9,7 @@ import BinDropZone from '../components/quiz/BinDropZone';
 import FeedbackPanel from '../components/quiz/FeedbackPanel';
 import ResultsScreen from '../components/quiz/ResultsScreen';
 
-const MAX_TIME = 10;
+const MAX_TIME = 20;
 const BASE_POINTS = 100;
 const LS_KEY = 'cds_best_score';
 
@@ -230,6 +230,8 @@ export default function QuizPage() {
         isTouchDevice={isTouchDevice}
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
+        onTouchBinHover={handleDragEnterBin}
+        onTouchDrop={handleDropOnBin}
         showFeedback={showFeedback}
       />
 
