@@ -31,7 +31,6 @@ export default function DraggableItem({
   showFeedback,
 }) {
   const { t } = useTranslation();
-  const emoji = EMOJI_MAP[question.itemIcon] || '🗑️';
   const difficultyColor = DIFFICULTY_COLOR[question.difficulty] || 'var(--color-text-muted)';
 
   const dragRef = useRef(null);
@@ -199,13 +198,17 @@ export default function DraggableItem({
           background:     'var(--color-bg-white)',
           border:         '2px solid var(--color-border)',
           boxShadow:      'var(--shadow-sm)',
+          overflow:       'hidden',
           display:        'flex',
           alignItems:     'center',
           justifyContent: 'center',
-          fontSize:       '2.2rem',
-          lineHeight:     1,
         }}>
-          {emoji}
+          <img 
+            src={`${import.meta.env.BASE_URL}items/${question.itemIcon}.jpg`} 
+            alt={question.itemName} 
+            style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+            onError={(e) => { e.target.onerror = null; e.target.src = 'https://loremflickr.com/400/400/medical'; }}
+          />
         </div>
 
         <div>
