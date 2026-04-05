@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { CheckCircle2, XCircle, RotateCcw, Award, Trophy, ChevronDown, ChevronUp, Star, Clock } from 'lucide-react';
+import { CheckCircle2, XCircle, RotateCcw, Award, Trophy, ChevronDown, ChevronUp, Star, Clock, BookOpen, CreditCard } from 'lucide-react';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -15,25 +16,60 @@ import html2canvas from 'html2canvas';
 ChartJS.register(CategoryScale, LinearScale, BarElement, Tooltip);
 
 const getBinNames = (lang) => ({
-  general: { name: lang === 'ar' ? 'نفايات عامة' : 'General Waste', color: '#1E293B', emoji: '🗑️' },
-  infectious: { name: lang === 'ar' ? 'نفايات معدية' : 'Infectious Waste', color: '#EAB308', emoji: '⚠️' },
-  sharps: { name: lang === 'ar' ? 'أدوات حادة / خطر بيولوجي' : 'Sharps / Biohazard', color: '#EF4444', emoji: '🔴' },
+  general:        { name: lang === 'ar' ? 'نفايات عامة' : 'General Waste',           color: '#1E293B', emoji: '🗑️' },
+  infectious:     { name: lang === 'ar' ? 'نفايات معدية' : 'Infectious Waste',        color: '#EAB308', emoji: '⚠️' },
+  sharps:         { name: lang === 'ar' ? 'أدوات حادة' : 'Sharps / Biohazard',        color: '#EF4444', emoji: '🔴' },
   pharmaceutical: { name: lang === 'ar' ? 'نفايات صيدلانية' : 'Pharmaceutical Waste', color: '#3B82F6', emoji: '💊' },
 });
 
 export default function ResultsScreen({ score, questionResults, totalQuestions, bestScore, userInfo = {}, onRestart }) {
   const { t, i18n } = useTranslation();
+  const navigate = useNavigate();
   const isRTL = i18n.language === 'ar';
   const binNames = getBinNames(i18n.language);
   const [reviewOpen, setReviewOpen] = useState(false);
   const [generating, setGenerating] = useState(false);
+  const [certId, setCertId] = useState('');
+  const hospitalName = localStorage.getItem('cds_hospital_name') || '';
 
   const correctCount = questionResults.filter(r => r.correct).length;
   const percentage = Math.round((correctCount / totalQuestions) * 100);
   const passed = percentage >= 70;
   const isNewRecord = score > bestScore;
-
   const wrongAnswers = questionResults.filter(r => !r.correct);
+
+  // On mount: generate cert ID (if passed) and save result record
+  useEffect(() => {
+    let id = '';
+    if (passed) {
+      const counter = parseInt(localStorage.getItem('cds_cert_counter') || '0', 10) + 1;
+      localStorage.setItem('cds_cert_counter', String(counter));
+      id = `HWDT-${new Date().getFullYear()}-${String(counter).padStart(5, '0')}`;
+      setCertId(id);
+    }
+
+    // Save result to localStorage
+    const results = JSON.parse(localStorage.getItem('cds_results') || '[]');
+    results.unshift({
+      id: Date.now(),
+      certId: id,
+      name: userInfo.name || 'Unknown',
+      profileNumber: userInfo.profileNumber || '-',
+      department: userInfo.department || '-',
+      score,
+      percentage,
+      passed,
+      correctCount,
+      totalQuestions,
+      date: new Date().toISOString(),
+    });
+    localStorage.setItem('cds_results', JSON.stringify(results.slice(0, 500)));
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const issueDate = new Date();
+  const expiryDate = new Date();
+  expiryDate.setFullYear(expiryDate.getFullYear() + 1);
+  const formatDate = (d) => d.toLocaleDateString(isRTL ? 'ar-SA' : 'en-GB');
 
   // Chart
   const chartData = {
@@ -59,37 +95,101 @@ export default function ResultsScreen({ score, questionResults, totalQuestions, 
   const handleDownloadCertificate = async () => {
     const template = document.getElementById('certificate-template');
     if (!template) return;
-
     setGenerating(true);
     try {
-      // Ensure the template is visible long enough for capture
-      template.style.display = 'block';
-      
+      // Make visible for capture (stays in layout so dimensions are always computed)
+      template.style.visibility = 'visible';
+      template.style.opacity = '1';
+
+      // Small delay to ensure any pending repaints settle
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      const CERT_W = 1122;
+      const CERT_H = 793;
+
       const canvas = await html2canvas(template, {
-        scale: 3, // High DPI for crisp text
+        scale: 2,
         useCORS: true,
+        allowTaint: false,
         logging: false,
-        backgroundColor: '#f8fafc'
+        backgroundColor: '#ffffff',
+        width: CERT_W,
+        height: CERT_H,
+        windowWidth: CERT_W,
+        windowHeight: CERT_H,
+        ignoreElements: (el) =>
+          el.tagName === 'CANVAS' && el.id !== 'certificate-template',
       });
 
-      template.style.display = 'none';
+      template.style.visibility = 'hidden';
+      template.style.opacity = '0';
 
       const imgData = canvas.toDataURL('image/png');
-      const pdf = new jsPDF({
-        orientation: 'landscape',
-        unit: 'mm',
-        format: 'a4'
-      });
-
+      const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
       const pdfWidth = pdf.internal.pageSize.getWidth();
       const pdfHeight = pdf.internal.pageSize.getHeight();
-      
       pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-      pdf.save(`HWDT-Certificate-${userInfo.name || 'Participant'}.pdf`);
+      pdf.save(`Certificate-${userInfo.name || 'Participant'}-${certId}.pdf`);
     } catch (err) {
       console.error('Cert generation failed:', err);
+      alert('Certificate generation failed. Please try again.');
     } finally {
       setGenerating(false);
+    }
+  };
+
+  const handleReviewMaterials = () => {
+    navigate('/learn', { state: { userInfo } });
+  };
+
+  const [generatingCard, setGeneratingCard] = useState(false);
+
+  const handleDownloadCard = async () => {
+    setGeneratingCard(true);
+    try {
+      const front = document.getElementById('card-front-template');
+      const back  = document.getElementById('card-back-template');
+      if (!front || !back) return;
+
+      const CARD_W = 856;  // 85.6mm × 10px/mm
+      const CARD_H = 540;  // 54mm  × 10px/mm
+
+      const captureOpts = {
+        scale: 2,
+        useCORS: true,
+        allowTaint: false,
+        logging: false,
+        backgroundColor: '#ffffff',
+        width: CARD_W,
+        height: CARD_H,
+        windowWidth: CARD_W,
+        windowHeight: CARD_H,
+        ignoreElements: (el) => el.tagName === 'CANVAS',
+      };
+
+      // Show both for capture
+      front.style.visibility = 'visible'; front.style.opacity = '1';
+      back.style.visibility  = 'visible'; back.style.opacity  = '1';
+      await new Promise(r => setTimeout(r, 100));
+
+      const frontCanvas = await html2canvas(front, captureOpts);
+      const backCanvas  = await html2canvas(back,  captureOpts);
+
+      front.style.visibility = 'hidden'; front.style.opacity = '0';
+      back.style.visibility  = 'hidden'; back.style.opacity  = '0';
+
+      // Credit card size in mm: 85.6 × 54, landscape
+      const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: [54, 85.6] });
+      pdf.addImage(frontCanvas.toDataURL('image/png'), 'PNG', 0, 0, 85.6, 54);
+      pdf.addPage([54, 85.6], 'landscape');
+      pdf.addImage(backCanvas.toDataURL('image/png'),  'PNG', 0, 0, 85.6, 54);
+
+      pdf.save(`HWDT-WalletCard-${userInfo.name || 'Participant'}.pdf`);
+    } catch (err) {
+      console.error('Card generation failed:', err);
+      alert('Card generation failed. Please try again.');
+    } finally {
+      setGeneratingCard(false);
     }
   };
 
@@ -98,12 +198,8 @@ export default function ResultsScreen({ score, questionResults, totalQuestions, 
 
       {/* ── Header result card ── */}
       <div style={{
-        background: 'var(--color-bg-white)',
-        borderRadius: 'var(--radius-lg)',
-        boxShadow: 'var(--shadow-lg)',
-        padding: '36px',
-        textAlign: 'center',
-        marginBottom: '20px',
+        background: 'var(--color-bg-white)', borderRadius: 'var(--radius-lg)',
+        boxShadow: 'var(--shadow-lg)', padding: '36px', textAlign: 'center', marginBottom: '20px',
       }}>
         {passed
           ? <Trophy size={56} color="var(--color-accent)" style={{ margin: '0 auto 16px' }} />
@@ -135,18 +231,16 @@ export default function ResultsScreen({ score, questionResults, totalQuestions, 
               icon: <CheckCircle2 size={20} color="var(--color-success)" />,
             },
             {
-              label: 'Avg. Time',
+              label: t('avgTime'),
               value: `${(questionResults.reduce((s, r) => s + r.timeUsed, 0) / questionResults.length).toFixed(1)}s`,
-              sub: 'per question',
+              sub: t('perQuestion'),
               subColor: 'var(--color-text-muted)',
               icon: <Clock size={20} color="var(--color-secondary)" />,
             },
           ].map(({ label, value, sub, subColor, icon }) => (
             <div key={label} style={{
-              background: 'var(--color-bg-light)',
-              borderRadius: 'var(--radius-md)',
-              padding: '14px 10px',
-              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px',
+              background: 'var(--color-bg-light)', borderRadius: 'var(--radius-md)',
+              padding: '14px 10px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px',
             }}>
               {icon}
               <p style={{ fontSize: '1.35rem', fontWeight: '800', color: 'var(--color-text-main)', margin: 0 }}>{value}</p>
@@ -161,36 +255,64 @@ export default function ResultsScreen({ score, questionResults, totalQuestions, 
 
         {/* Actions */}
         <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
-          <button
-            onClick={onRestart}
-            style={{
-              display: 'inline-flex', alignItems: 'center', gap: '8px',
-              padding: '11px 24px', border: '1px solid var(--color-border)',
-              borderRadius: 'var(--radius-md)', fontWeight: '600', fontSize: '0.9rem',
-              cursor: 'pointer', background: 'var(--color-bg-white)', color: 'var(--color-text-main)',
-            }}
-          >
+          <button onClick={onRestart} style={{
+            display: 'inline-flex', alignItems: 'center', gap: '8px',
+            padding: '11px 24px', border: '1px solid var(--color-border)',
+            borderRadius: 'var(--radius-md)', fontWeight: '600', fontSize: '0.9rem',
+            cursor: 'pointer', background: 'var(--color-bg-white)', color: 'var(--color-text-main)',
+          }}>
             <RotateCcw size={16} />
             {t('tryAgain')}
           </button>
+
+          {/* Failed: show Review Materials button */}
+          {!passed && (
+            <button onClick={handleReviewMaterials} style={{
+              display: 'inline-flex', alignItems: 'center', gap: '8px',
+              padding: '11px 24px', background: 'var(--color-primary)',
+              color: 'white', border: 'none', borderRadius: 'var(--radius-md)',
+              fontWeight: '700', fontSize: '0.9rem', cursor: 'pointer',
+              boxShadow: 'var(--shadow-md)',
+            }}>
+              <BookOpen size={16} />
+              {t('reviewMaterials')}
+            </button>
+          )}
+
+          {/* Passed: show Certificate + Card download */}
           {passed && (
-            <button
-              onClick={handleDownloadCertificate}
-              disabled={generating}
-              style={{
+            <>
+              <button onClick={handleDownloadCertificate} disabled={generating} style={{
                 display: 'inline-flex', alignItems: 'center', gap: '8px',
                 padding: '11px 24px', background: 'var(--color-primary)',
                 color: 'white', border: 'none', borderRadius: 'var(--radius-md)',
                 fontWeight: '700', fontSize: '0.9rem', cursor: 'pointer',
-                boxShadow: 'var(--shadow-md)',
-                opacity: generating ? 0.7 : 1
-              }}
-            >
-              <Award size={16} className={generating ? 'animate-spin' : ''} />
-              {generating ? t('generating') || 'Generating...' : t('downloadCertificate')}
-            </button>
+                boxShadow: 'var(--shadow-md)', opacity: generating ? 0.7 : 1,
+              }}>
+                <Award size={16} />
+                {generating ? (t('generating') || 'Generating…') : t('downloadCertificate')}
+              </button>
+              <button onClick={handleDownloadCard} disabled={generatingCard} style={{
+                display: 'inline-flex', alignItems: 'center', gap: '8px',
+                padding: '11px 24px', background: 'var(--color-bg-white)',
+                color: 'var(--color-primary)', border: '2px solid var(--color-primary)',
+                borderRadius: 'var(--radius-md)', fontWeight: '700', fontSize: '0.9rem',
+                cursor: 'pointer', opacity: generatingCard ? 0.7 : 1,
+              }}>
+                <CreditCard size={16} />
+                {generatingCard ? t('cardGenerating') : t('downloadCard')}
+              </button>
+            </>
           )}
         </div>
+
+        {/* Passed: show cert ID badge */}
+        {passed && certId && (
+          <p style={{ marginTop: '14px', fontSize: '0.78rem', color: 'var(--color-text-muted)' }}>
+            {t('certNumber')}: <strong style={{ color: 'var(--color-primary)', letterSpacing: '0.05em' }}>{certId}</strong>
+            &nbsp;·&nbsp;{t('certValidUntil')}: <strong>{formatDate(expiryDate)}</strong>
+          </p>
+        )}
       </div>
 
       {/* ── Performance chart ── */}
@@ -203,7 +325,7 @@ export default function ResultsScreen({ score, questionResults, totalQuestions, 
         </h3>
         <Bar data={chartData} options={chartOptions} />
         <p style={{ fontSize: '0.72rem', color: 'var(--color-text-muted)', marginTop: '10px', textAlign: 'center' }}>
-          🟢 Correct · 🔴 Incorrect / Timed Out
+          🟢 {t('correct')} · 🔴 {t('incorrect')} / {t('timeout')}
         </p>
       </div>
 
@@ -211,77 +333,47 @@ export default function ResultsScreen({ score, questionResults, totalQuestions, 
       {wrongAnswers.length > 0 && (
         <div style={{
           background: 'var(--color-bg-white)', borderRadius: 'var(--radius-lg)',
-          boxShadow: 'var(--shadow-md)', overflow: 'hidden',
+          boxShadow: 'var(--shadow-md)', overflow: 'hidden', marginBottom: '20px',
         }}>
-          <button
-            onClick={() => setReviewOpen(o => !o)}
-            style={{
-              width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              padding: '18px 24px', background: 'none', border: 'none', cursor: 'pointer',
-              borderBottom: reviewOpen ? '1px solid var(--color-border)' : 'none',
-            }}
-          >
+          <button onClick={() => setReviewOpen(o => !o)} style={{
+            width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            padding: '18px 24px', background: 'none', border: 'none', cursor: 'pointer',
+            borderBottom: reviewOpen ? '1px solid var(--color-border)' : 'none',
+          }}>
             <span style={{ fontWeight: '700', fontSize: '0.95rem', color: 'var(--color-text-main)', display: 'flex', alignItems: 'center', gap: '8px' }}>
               <XCircle size={17} color="var(--color-danger)" />
               {t('reviewWrongAnswers')}
-              <span style={{
-                fontSize: '0.75rem', fontWeight: '700',
-                background: 'var(--color-danger)', color: 'white',
-                padding: '1px 8px', borderRadius: 'var(--radius-full)',
-              }}>
+              <span style={{ fontSize: '0.75rem', fontWeight: '700', background: 'var(--color-danger)', color: 'white', padding: '1px 8px', borderRadius: 'var(--radius-full)' }}>
                 {wrongAnswers.length}
               </span>
             </span>
             {reviewOpen ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
           </button>
-
           {reviewOpen && (
             <div style={{ padding: '16px 24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
               {wrongAnswers.map((r, i) => {
                 const correctBin = binNames[r.correctBin];
                 const selectedBinInfo = r.selectedBin === '__timeout__' ? null : binNames[r.selectedBin];
                 return (
-                  <div key={r.id} style={{
-                    padding: '16px', borderRadius: 'var(--radius-md)',
-                    background: 'var(--color-bg-light)', border: '1px solid var(--color-border)',
-                  }}>
+                  <div key={r.id} style={{ padding: '16px', borderRadius: 'var(--radius-md)', background: 'var(--color-bg-light)', border: '1px solid var(--color-border)' }}>
                     <p style={{ fontWeight: '700', fontSize: '0.9rem', color: 'var(--color-text-main)', marginBottom: '10px' }}>
                       {i + 1}. {r.itemName}
                     </p>
                     <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginBottom: '10px' }}>
-                      {/* Correct bin */}
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <span style={{ fontSize: '0.72rem', fontWeight: '600', color: 'var(--color-text-muted)', textTransform: 'uppercase' }}>
-                          {t('correctAnswer')}:
-                        </span>
-                        <span style={{
-                          display: 'inline-flex', alignItems: 'center', gap: '4px',
-                          fontSize: '0.78rem', fontWeight: '700',
-                          color: 'white', background: correctBin.color,
-                          padding: '2px 10px', borderRadius: 'var(--radius-full)',
-                        }}>
+                        <span style={{ fontSize: '0.72rem', fontWeight: '600', color: 'var(--color-text-muted)', textTransform: 'uppercase' }}>{t('correctAnswer')}:</span>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '0.78rem', fontWeight: '700', color: 'white', background: correctBin.color, padding: '2px 10px', borderRadius: 'var(--radius-full)' }}>
                           {correctBin.emoji} {correctBin.name}
                         </span>
                       </div>
-                      {/* What they picked */}
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <span style={{ fontSize: '0.72rem', fontWeight: '600', color: 'var(--color-text-muted)', textTransform: 'uppercase' }}>
-                          {t('yourAnswer')}:
-                        </span>
-                        <span style={{
-                          display: 'inline-flex', alignItems: 'center', gap: '4px',
-                          fontSize: '0.78rem', fontWeight: '700',
-                          color: 'var(--color-danger)',
-                          padding: '2px 10px', borderRadius: 'var(--radius-full)',
-                          border: '1px solid var(--color-danger)',
-                        }}>
+                        <span style={{ fontSize: '0.72rem', fontWeight: '600', color: 'var(--color-text-muted)', textTransform: 'uppercase' }}>{t('yourAnswer')}:</span>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '0.78rem', fontWeight: '700', color: 'var(--color-danger)', padding: '2px 10px', borderRadius: 'var(--radius-full)', border: '1px solid var(--color-danger)' }}>
                           {selectedBinInfo ? `${selectedBinInfo.emoji} ${selectedBinInfo.name}` : `⏱ ${t('timeout')}`}
                         </span>
                       </div>
                     </div>
-                    <p style={{ fontSize: '0.82rem', color: 'var(--color-text-muted)', lineHeight: 1.65 }}>
-                      {r.explanation}
-                    </p>
+                    <p style={{ fontSize: '0.82rem', color: 'var(--color-text-muted)', lineHeight: 1.65 }}>{r.explanation}</p>
                   </div>
                 );
               })}
@@ -289,127 +381,236 @@ export default function ResultsScreen({ score, questionResults, totalQuestions, 
           )}
         </div>
       )}
-      {/* ── Hidden Certificate Template (for html2canvas) ── */}
-      <div 
+
+      {/* ── Hidden Certificate Template ── */}
+      <div
         id="certificate-template"
         style={{
-          display: 'none', // Capture logic toggles this
-          position: 'fixed',
-          top: '-2000px',
-          left: '-2000px',
-          width: '1122px', // A4 Landscape ratio
+          visibility: 'hidden',
+          opacity: '0',
+          position: 'absolute',
+          top: 0,
+          left: '-9999px',
+          width: '1122px',
           height: '793px',
-          backgroundColor: '#f8fafc',
-          padding: '40px',
+          backgroundColor: '#ffffff',
           boxSizing: 'border-box',
-          fontFamily: 'Inter, system-ui, -apple-system, sans-serif',
+          fontFamily: 'Georgia, "Times New Roman", serif',
           direction: isRTL ? 'rtl' : 'ltr',
-          textAlign: 'center'
+          pointerEvents: 'none',
         }}
       >
-        <div style={{
-          height: '100%',
-          border: '8px solid #0d948a',
-          padding: '2px',
-          boxSizing: 'border-box'
-        }}>
-          <div style={{
-            height: '100%',
-            border: '2px solid #0d948a',
-            padding: '40px',
-            boxSizing: 'border-box',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center'
-          }}>
-            {/* Logo */}
-            <img 
-              src={`${import.meta.env.BASE_URL}logo.png`}
-              alt="Logo"
-              style={{ width: '100px', marginBottom: '30px' }}
-            />
+        {/* Outer border */}
+        <div style={{ width: '100%', height: '100%', border: '12px solid #0d5c56', boxSizing: 'border-box', padding: '6px' }}>
+          <div style={{ width: '100%', height: '100%', border: '3px solid #c8a84b', boxSizing: 'border-box', padding: '32px 48px', display: 'flex', flexDirection: 'column' }}>
 
-            {/* Title */}
-            <h1 style={{ 
-              fontSize: '48px', 
-              color: '#0d948a', 
-              margin: '0 0 10px 0',
-              fontWeight: '900'
-            }}>
-              {isRTL ? 'شهادة اجتياز البرنامج التدريبي' : 'Certificate of Achievement'}
-            </h1>
-            
-            <p style={{ 
-              fontSize: '24px', 
-              color: '#475569', 
-              margin: '0 0 30px 0' 
-            }}>
-              {isRTL ? 'برنامج التخلص الآمن من النفايات الطبية (HWDT)' : 'Safe Medical Waste Disposal Program (HWDT)'}
-            </p>
-
-            <div style={{ width: '80%', height: '2px', backgroundColor: '#0d948a', margin: '0 auto 40px' }} />
-
-            <p style={{ fontSize: '20px', color: '#64748b', margin: '0 0 15px 0' }}>
-              {isRTL ? 'يُشهد بأن المتدرب الموضحة بياناته أدناه' : 'This certifies that the candidate named below'}
-            </p>
-
-            <h2 style={{ 
-              fontSize: '42px', 
-              color: '#0f172a', 
-              margin: '0 0 15px 0',
-              fontWeight: '800'
-            }}>
-              {userInfo.name || 'Participant'}
-            </h2>
-
-            <p style={{ fontSize: '18px', color: '#94a3b8', margin: '0 0 30px 0' }}>
-              {[userInfo.profileNumber, userInfo.department].filter(Boolean).join('  ·  ')}
-            </p>
-
-            <p style={{ 
-              fontSize: '20px', 
-              color: '#475569', 
-              lineHeight: '1.6',
-              maxWidth: '80%',
-              margin: '0 auto 50px'
-            }}>
-              {isRTL 
-                ? 'قد أتم بنجاح متطلبات البرنامج التدريبي لفرز النفايات الطبية، جرى منح هذه الشهادة اعترافاً بإنجازه.'
-                : 'has successfully completed the vocational training requirements for medical waste segregation, earning this certificate in recognition of their achievement.'}
-            </p>
-
-            {/* Footer metadata */}
-            <div style={{ display: 'flex', width: '100%', justifyContent: 'space-around', marginTop: 'auto' }}>
-              <div>
-                <p style={{ fontSize: '14px', color: '#94a3b8', margin: '0 0 5px 0' }}>
-                  {isRTL ? 'تاريخ الإصدار' : 'Date of Issue'}
+            {/* Top: hospital name + program name */}
+            <div style={{ textAlign: 'center', marginBottom: '18px' }}>
+              {hospitalName && (
+                <p style={{ fontSize: '20px', fontWeight: '700', color: '#0d5c56', margin: '0 0 4px', fontFamily: 'Arial, sans-serif', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+                  {hospitalName}
                 </p>
-                <p style={{ fontSize: '18px', fontWeight: 'bold', color: '#334155', margin: 0 }}>
-                  {new Date().toLocaleDateString('en-GB')}
-                </p>
+              )}
+              <p style={{ fontSize: '13px', color: '#64748b', margin: 0, fontFamily: 'Arial, sans-serif', letterSpacing: '0.05em' }}>
+                {isRTL ? 'إدارة مكافحة العدوى وسلامة البيئة' : 'Department of Infection Control & Environmental Safety'}
+              </p>
+            </div>
+
+            {/* Decorative divider */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+              <div style={{ flex: 1, height: '1px', background: 'linear-gradient(to right, transparent, #c8a84b)' }} />
+              <span style={{ fontSize: '22px' }}>✦</span>
+              <div style={{ flex: 1, height: '1px', background: 'linear-gradient(to left, transparent, #c8a84b)' }} />
+            </div>
+
+            {/* Certificate title */}
+            <div style={{ textAlign: 'center', marginBottom: '16px' }}>
+              <h1 style={{ fontSize: '42px', color: '#0d5c56', margin: '0 0 6px', fontWeight: '700', letterSpacing: '0.02em' }}>
+                {t('certAchievement')}
+              </h1>
+              <p style={{ fontSize: '16px', color: '#475569', margin: 0, fontFamily: 'Arial, sans-serif', letterSpacing: '0.04em' }}>
+                {t('certProgram')}
+              </p>
+            </div>
+
+            {/* This certifies that */}
+            <p style={{ textAlign: 'center', fontSize: '16px', color: '#64748b', margin: '0 0 8px', fontStyle: 'italic' }}>
+              {t('certThisCertifies')}
+            </p>
+
+            {/* Candidate name */}
+            <div style={{ textAlign: 'center', margin: '0 0 8px' }}>
+              <h2 style={{ fontSize: '38px', color: '#0f172a', margin: 0, fontWeight: '700', borderBottom: '2px solid #c8a84b', display: 'inline-block', paddingBottom: '4px', minWidth: '400px' }}>
+                {userInfo.name || (isRTL ? 'المتدرب' : 'Participant')}
+              </h2>
+            </div>
+
+            {/* Employee ID + Department */}
+            <p style={{ textAlign: 'center', fontSize: '14px', color: '#64748b', margin: '0 0 12px', fontFamily: 'Arial, sans-serif' }}>
+              {[userInfo.profileNumber, userInfo.department ? (isRTL ? userInfo.department : userInfo.department) : ''].filter(Boolean).join('  ·  ')}
+            </p>
+
+            {/* Body text */}
+            <p style={{ textAlign: 'center', fontSize: '14px', color: '#475569', lineHeight: '1.7', maxWidth: '700px', margin: '0 auto 20px', fontFamily: 'Arial, sans-serif' }}>
+              {t('certCompletedPart1')} <strong>{t('certCompletedPart2')}</strong> {t('certCompletedPart3')}
+            </p>
+
+            {/* Score badge */}
+            <div style={{ textAlign: 'center', marginBottom: '20px' }}>
+              <span style={{ display: 'inline-block', padding: '6px 24px', background: '#0d5c56', color: 'white', borderRadius: '20px', fontSize: '14px', fontFamily: 'Arial, sans-serif', fontWeight: '700', letterSpacing: '0.05em' }}>
+                {isRTL ? 'النتيجة' : 'Score'}: {percentage}% &nbsp;|&nbsp; {correctCount}/{totalQuestions} {isRTL ? 'صحيح' : 'Correct'}
+              </span>
+            </div>
+
+            {/* Signature lines */}
+            <div style={{ display: 'flex', justifyContent: 'space-around', alignItems: 'flex-end', marginBottom: '16px' }}>
+              {[t('certProgCoord'), t('certDeptHead')].map(role => (
+                <div key={role} style={{ textAlign: 'center', minWidth: '200px' }}>
+                  <div style={{ width: '180px', height: '1px', background: '#334155', margin: '0 auto 6px' }} />
+                  <p style={{ fontSize: '12px', color: '#475569', margin: 0, fontFamily: 'Arial, sans-serif', fontWeight: '600' }}>{role}</p>
+                </div>
+              ))}
+            </div>
+
+            {/* Footer: cert ID, dates, reference */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: '1px solid #e2e8f0', paddingTop: '10px' }}>
+              <div style={{ fontSize: '11px', color: '#94a3b8', fontFamily: 'Arial, sans-serif' }}>
+                <strong style={{ color: '#475569' }}>{t('certNumber')}:</strong> {certId}
               </div>
-              <div>
-                <p style={{ fontSize: '14px', color: '#94a3b8', margin: '0 0 5px 0' }}>
-                  {isRTL ? 'النتيجة النهائية' : 'Final Assessment Score'}
-                </p>
-                <p style={{ fontSize: '18px', fontWeight: 'bold', color: '#334155', margin: 0 }}>
-                  {(score / totalQuestions * 100).toFixed(0)}%
-                </p>
+              <div style={{ fontSize: '11px', color: '#94a3b8', textAlign: 'center', fontFamily: 'Arial, sans-serif' }}>
+                {isRTL ? 'مستند إلى إرشادات منظمة الصحة العالمية لإدارة النفايات الطبية (2014)' : 'Based on WHO Healthcare Waste Management Guidelines (2014)'}
+              </div>
+              <div style={{ fontSize: '11px', color: '#94a3b8', textAlign: isRTL ? 'left' : 'right', fontFamily: 'Arial, sans-serif' }}>
+                <span><strong style={{ color: '#475569' }}>{t('certIssuedBy').replace('By','').replace('عن','').trim()}:</strong> {formatDate(issueDate)}</span>
+                &nbsp;&nbsp;
+                <span><strong style={{ color: '#475569' }}>{t('certValidUntil')}:</strong> {formatDate(expiryDate)}</span>
               </div>
             </div>
 
-            <div style={{ marginTop: '50px' }}>
-              <p style={{ fontSize: '12px', color: '#cbd5e1', margin: 0 }}>
-                Reference: WHO Healthcare Waste Management Guidelines
-              </p>
-              <p style={{ fontSize: '11px', color: '#cbd5e1', margin: '5px 0 0 0' }}>
-                Electronic Verification Code: HWDT-{Math.random().toString(36).substr(2, 6).toUpperCase()}
-              </p>
-            </div>
           </div>
         </div>
       </div>
+
+      {/* ── Hidden Card Templates (captured by html2canvas) ── */}
+      {/* 856×540px = 85.6mm×54mm at 10px/mm — browser renders Arabic/RTL perfectly */}
+
+      {/* FRONT */}
+      <div id="card-front-template" style={{
+        visibility: 'hidden', opacity: '0',
+        position: 'absolute', top: 0, left: '-9999px',
+        width: '856px', height: '540px',
+        fontFamily: 'Arial, sans-serif',
+        direction: isRTL ? 'rtl' : 'ltr',
+        backgroundColor: '#ffffff',
+        overflow: 'hidden',
+        boxSizing: 'border-box',
+        pointerEvents: 'none',
+      }}>
+        {/* Teal header */}
+        <div style={{ background: '#0d5c56', padding: '0 32px', height: '170px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+          <p style={{ color: 'white', fontWeight: '900', fontSize: '26px', margin: 0, letterSpacing: '0.06em', textAlign: 'center' }}>
+            {(localStorage.getItem('cds_hospital_name') || 'HWDT').toUpperCase()}
+          </p>
+          <p style={{ color: 'rgba(255,255,255,0.85)', fontSize: '18px', margin: 0, textAlign: 'center' }}>
+            {isRTL ? 'فرز النفايات الطبية' : 'Medical Waste Segregation'}
+          </p>
+          {/* Gold certified badge */}
+          <div style={{ marginTop: '8px', background: '#c8a84b', borderRadius: '20px', padding: '6px 28px' }}>
+            <span style={{ color: 'white', fontWeight: '800', fontSize: '16px', letterSpacing: '0.08em' }}>
+              {isRTL ? '✓ معتمد' : 'CERTIFIED ✓'}
+            </span>
+          </div>
+        </div>
+
+        {/* White body */}
+        <div style={{ padding: '18px 32px 0', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+          {/* Name */}
+          <p style={{ fontWeight: '900', fontSize: '30px', color: '#0f172a', margin: 0, textAlign: 'center' }}>
+            {userInfo.name || (isRTL ? 'المتدرب' : 'Participant')}
+          </p>
+          {/* Meta */}
+          <p style={{ color: '#64748b', fontSize: '15px', margin: 0, textAlign: 'center' }}>
+            {[userInfo.profileNumber, userInfo.department].filter(Boolean).join('  ·  ')}
+          </p>
+
+          {/* Divider */}
+          <div style={{ borderTop: '1px solid #e2e8f0', margin: '8px 0' }} />
+
+          {/* Details row */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', flex: 1 }}>
+              {[
+                { label: isRTL ? 'تاريخ الإصدار:' : 'Issued:',      value: formatDate(issueDate) },
+                { label: isRTL ? 'صالحة حتى:'    : 'Expires:',     value: formatDate(expiryDate) },
+                { label: isRTL ? 'رقم الشهادة:'  : 'Cert No:',     value: certId || '—' },
+              ].map(({ label, value }) => (
+                <div key={label} style={{ display: 'flex', gap: '12px', alignItems: 'center', flexDirection: isRTL ? 'row-reverse' : 'row' }}>
+                  <span style={{ color: '#94a3b8', fontSize: '13px', minWidth: '90px', textAlign: isRTL ? 'right' : 'left' }}>{label}</span>
+                  <span style={{ color: '#0f172a', fontWeight: '700', fontSize: '14px' }}>{value}</span>
+                </div>
+              ))}
+            </div>
+            {/* Score badge */}
+            <div style={{ background: '#0d5c56', borderRadius: '14px', width: '120px', height: '120px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flexShrink: 0, margin: isRTL ? '0 16px 0 0' : '0 0 0 16px' }}>
+              <span style={{ color: 'white', fontWeight: '900', fontSize: '34px', lineHeight: 1 }}>{percentage}%</span>
+              <span style={{ color: 'rgba(255,255,255,0.8)', fontSize: '13px', marginTop: '4px' }}>{isRTL ? 'النتيجة' : 'Score'}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Bottom footer */}
+        <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: '#f1f5f9', padding: '8px 32px', textAlign: 'center' }}>
+          <span style={{ color: '#94a3b8', fontSize: '11px', fontStyle: 'italic' }}>
+            {isRTL ? 'إرشادات منظمة الصحة العالمية لإدارة النفايات الطبية' : 'WHO Healthcare Waste Management Guidelines'}
+          </span>
+        </div>
+      </div>
+
+      {/* BACK */}
+      <div id="card-back-template" style={{
+        visibility: 'hidden', opacity: '0',
+        position: 'absolute', top: 0, left: '-9999px',
+        width: '856px', height: '540px',
+        fontFamily: 'Arial, sans-serif',
+        direction: isRTL ? 'rtl' : 'ltr',
+        backgroundColor: '#ffffff',
+        overflow: 'hidden',
+        boxSizing: 'border-box',
+        pointerEvents: 'none',
+      }}>
+        {/* Teal header */}
+        <div style={{ background: '#0d5c56', height: '90px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <p style={{ color: 'white', fontWeight: '800', fontSize: '22px', margin: 0, letterSpacing: '0.04em' }}>
+            {isRTL ? 'دليل فرز النفايات السريع' : 'Quick Waste Segregation Guide'}
+          </p>
+        </div>
+
+        {/* Bin list */}
+        <div style={{ padding: '18px 40px 0', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          {[
+            { color: '#1E293B', en: 'General Waste',      ar: 'النفايات العامة',     bin: isRTL ? 'الحاوية السوداء' : 'Black Bin' },
+            { color: '#EAB308', en: 'Infectious Waste',   ar: 'النفايات المعدية',    bin: isRTL ? 'الحاوية الصفراء' : 'Yellow Bin' },
+            { color: '#EF4444', en: 'Sharps / Biohazard', ar: 'الأدوات الحادة',      bin: isRTL ? 'الحاوية الحمراء' : 'Red Bin' },
+            { color: '#3B82F6', en: 'Pharmaceutical',     ar: 'النفايات الصيدلانية', bin: isRTL ? 'الحاوية الزرقاء' : 'Blue Bin' },
+          ].map(({ color, en, ar, bin }) => (
+            <div key={en} style={{ display: 'flex', alignItems: 'center', gap: '16px', flexDirection: isRTL ? 'row-reverse' : 'row' }}>
+              <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: color, flexShrink: 0 }} />
+              <div style={{ display: 'flex', flexDirection: 'column', textAlign: isRTL ? 'right' : 'left' }}>
+                <span style={{ fontWeight: '800', fontSize: '16px', color: '#0f172a' }}>{isRTL ? ar : en}</span>
+                <span style={{ fontSize: '12px', color: '#64748b' }}>{bin}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* When in doubt rule */}
+        <div style={{ position: 'absolute', bottom: '16px', left: '20px', right: '20px', background: '#fefce8', border: '1px solid #fde68a', borderRadius: '10px', padding: '14px 20px', textAlign: 'center' }}>
+          <span style={{ color: '#92400e', fontWeight: '800', fontSize: '16px' }}>
+            {isRTL ? '⚠ عند الشك → ضع في الحاوية الصفراء' : '⚠ When in doubt → Use the Yellow bin'}
+          </span>
+        </div>
+      </div>
+
     </div>
   );
 }

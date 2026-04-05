@@ -1,23 +1,21 @@
 import { useState } from 'react';
-import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
+import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import QuizPage from './pages/QuizPage';
 import InfoPage from './pages/InfoPage';
 import AdminPage from './pages/AdminPage';
 import Logo from './components/Logo';
-import { BookOpen, ClipboardCheck, User, Hash, Building2 } from 'lucide-react';
+import { BookOpen, ClipboardCheck, User, Hash, Building2, Award, Clock, FileCheck } from 'lucide-react';
 
 const DEPARTMENTS = [
-  'emergency', 'icu', 'operating', 'general', 'pediatrics', 
-  'oncology', 'radiology', 'laboratory', 'pharmacy', 
+  'emergency', 'icu', 'operating', 'general', 'pediatrics',
+  'oncology', 'radiology', 'laboratory', 'pharmacy',
   'outpatient', 'other'
 ];
 
 function Navbar() {
   const { i18n } = useTranslation();
   const navigate = useNavigate();
-  const location = useLocation();
-  const isLanding = location.pathname === '/';
 
   const toggleLang = () => {
     const newLang = i18n.language === 'en' ? 'ar' : 'en';
@@ -37,31 +35,47 @@ function Navbar() {
       <div onClick={() => navigate('/')} style={{ cursor: 'pointer' }}>
         <Logo size={32} showText={true} />
       </div>
-      <div style={{ display: 'flex', gap: '8px' }}>
-        {isLanding && (
-          <button
-            onClick={toggleLang}
-            style={{
-              padding: '7px 16px',
-              background: 'var(--color-bg-light)',
-              border: '1px solid var(--color-border)',
-              borderRadius: 'var(--radius-md)',
-              fontWeight: '600',
-              fontSize: '0.85rem',
-              cursor: 'pointer',
-            }}
-          >
-            {i18n.language === 'en' ? 'العربية' : 'English'}
-          </button>
-        )}
-      </div>
+      <button
+        onClick={toggleLang}
+        style={{
+          padding: '7px 16px',
+          background: 'var(--color-bg-light)',
+          border: '1px solid var(--color-border)',
+          borderRadius: 'var(--radius-md)',
+          fontWeight: '600',
+          fontSize: '0.85rem',
+          cursor: 'pointer',
+        }}
+      >
+        {i18n.language === 'en' ? 'العربية' : 'English'}
+      </button>
     </nav>
   );
 }
 
-function LandingPage() {
+function Footer() {
   const { t } = useTranslation();
+  const hospitalName = localStorage.getItem('cds_hospital_name') || '';
+
+  return (
+    <footer style={{
+      borderTop: '1px solid var(--color-border)',
+      backgroundColor: 'var(--color-bg-white)',
+      padding: '16px 24px',
+      textAlign: 'center',
+    }}>
+      <p style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', margin: 0, lineHeight: 1.8 }}>
+        {hospitalName && <><strong style={{ color: 'var(--color-text-main)' }}>{hospitalName}</strong> · </>}
+        {t('footerRef')} · {t('footerVersion')}
+      </p>
+    </footer>
+  );
+}
+
+function LandingPage() {
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
+  const isRTL = i18n.language === 'ar';
   const [form, setForm] = useState({ name: '', profileNumber: '', department: '' });
   const [errors, setErrors] = useState({});
 
@@ -113,10 +127,17 @@ function LandingPage() {
     letterSpacing: '0.05em',
   };
 
+  const programHighlights = [
+    { icon: <FileCheck size={20} color="var(--color-primary)" />, label: t('programQuestions') },
+    { icon: <Clock size={20} color="var(--color-primary)" />,     label: t('programTime') },
+    { icon: <Award size={20} color="var(--color-primary)" />,     label: t('programCertificate') },
+  ];
+
   return (
-    <div className="container" style={{ maxWidth: '580px', padding: '40px 20px' }}>
+    <div className="container" style={{ maxWidth: '580px', padding: '40px 20px', direction: isRTL ? 'rtl' : 'ltr' }}>
+
       {/* Hero */}
-      <div style={{ textAlign: 'center', marginBottom: '32px' }}>
+      <div style={{ textAlign: 'center', marginBottom: '24px' }}>
         <div style={{ marginBottom: '16px' }}>
           <Logo size={80} />
         </div>
@@ -126,6 +147,36 @@ function LandingPage() {
         <p style={{ color: 'var(--color-text-muted)', fontSize: '0.92rem', lineHeight: 1.65, maxWidth: '440px', margin: '0 auto' }}>
           {t('landingHeroSub')}
         </p>
+      </div>
+
+      {/* Program intro highlights */}
+      <div style={{
+        background: 'var(--color-bg-white)',
+        borderRadius: 'var(--radius-lg)',
+        boxShadow: 'var(--shadow-sm)',
+        padding: '18px 24px',
+        marginBottom: '20px',
+        border: '1px solid var(--color-border)',
+      }}>
+        <p style={{ fontSize: '0.78rem', fontWeight: '700', color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '12px' }}>
+          {t('programTitle')}
+        </p>
+        <p style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)', lineHeight: 1.6, marginBottom: '14px' }}>
+          {t('programDesc')}
+        </p>
+        <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+          {programHighlights.map(({ icon, label }) => (
+            <div key={label} style={{
+              display: 'flex', alignItems: 'center', gap: '6px',
+              padding: '6px 12px',
+              background: 'rgba(13,148,136,0.07)',
+              borderRadius: 'var(--radius-md)',
+              fontSize: '0.8rem', fontWeight: '600', color: 'var(--color-primary)',
+            }}>
+              {icon} {label}
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* User info form */}
@@ -147,12 +198,7 @@ function LandingPage() {
             <User size={13} />
             {t('fullName')}
           </label>
-          <input
-            type="text"
-            placeholder={t('fullName')}
-            style={inputStyle(!!errors.name)}
-            {...field('name')}
-          />
+          <input type="text" placeholder={t('fullName')} style={inputStyle(!!errors.name)} {...field('name')} />
           {errors.name && <p style={{ fontSize: '0.78rem', color: 'var(--color-danger)', marginTop: '4px' }}>{errors.name}</p>}
         </div>
 
@@ -162,12 +208,7 @@ function LandingPage() {
             <Hash size={13} />
             {t('profileNumber')}
           </label>
-          <input
-            type="text"
-            placeholder={t('profileNumber')}
-            style={inputStyle(!!errors.profileNumber)}
-            {...field('profileNumber')}
-          />
+          <input type="text" placeholder={t('profileNumber')} style={inputStyle(!!errors.profileNumber)} {...field('profileNumber')} />
           {errors.profileNumber && <p style={{ fontSize: '0.78rem', color: 'var(--color-danger)', marginTop: '4px' }}>{errors.profileNumber}</p>}
         </div>
 
@@ -194,77 +235,45 @@ function LandingPage() {
 
       {/* Two action buttons */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
-        {/* Learn option */}
         <button
           onClick={() => go('/learn')}
           style={{
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            gap: '10px',
-            padding: '22px 16px',
-            background: 'var(--color-bg-white)',
-            border: '2px solid var(--color-border)',
-            borderRadius: 'var(--radius-lg)',
-            cursor: 'pointer',
-            textAlign: 'center',
-            boxShadow: 'var(--shadow-sm)',
+            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px',
+            padding: '22px 16px', background: 'var(--color-bg-white)',
+            border: '2px solid var(--color-border)', borderRadius: 'var(--radius-lg)',
+            cursor: 'pointer', textAlign: 'center', boxShadow: 'var(--shadow-sm)',
             transition: 'border-color 0.15s, box-shadow 0.15s',
           }}
           onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--color-primary)'; e.currentTarget.style.boxShadow = 'var(--shadow-md)'; }}
           onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--color-border)'; e.currentTarget.style.boxShadow = 'var(--shadow-sm)'; }}
         >
-          <div style={{
-            width: '52px', height: '52px', borderRadius: '50%',
-            background: 'rgba(13,148,136,0.1)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}>
+          <div style={{ width: '52px', height: '52px', borderRadius: '50%', background: 'rgba(13,148,136,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <BookOpen size={24} color="var(--color-primary)" />
           </div>
           <div>
-            <p style={{ fontWeight: '700', fontSize: '0.92rem', color: 'var(--color-text-main)', margin: 0 }}>
-              {t('readFirst')}
-            </p>
-            <p style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', margin: '4px 0 0', lineHeight: 1.4 }}>
-              {t('readFirstSub')}
-            </p>
+            <p style={{ fontWeight: '700', fontSize: '0.92rem', color: 'var(--color-text-main)', margin: 0 }}>{t('readFirst')}</p>
+            <p style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', margin: '4px 0 0', lineHeight: 1.4 }}>{t('readFirstSub')}</p>
           </div>
         </button>
 
-        {/* Take test option */}
         <button
           onClick={() => go('/quiz')}
           style={{
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            gap: '10px',
-            padding: '22px 16px',
-            background: 'var(--color-primary)',
-            border: '2px solid var(--color-primary)',
-            borderRadius: 'var(--radius-lg)',
-            cursor: 'pointer',
-            textAlign: 'center',
-            boxShadow: 'var(--shadow-md)',
+            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px',
+            padding: '22px 16px', background: 'var(--color-primary)',
+            border: '2px solid var(--color-primary)', borderRadius: 'var(--radius-lg)',
+            cursor: 'pointer', textAlign: 'center', boxShadow: 'var(--shadow-md)',
             transition: 'background 0.15s',
           }}
           onMouseEnter={e => e.currentTarget.style.background = 'var(--color-primary-dark)'}
           onMouseLeave={e => e.currentTarget.style.background = 'var(--color-primary)'}
         >
-          <div style={{
-            width: '52px', height: '52px', borderRadius: '50%',
-            background: 'rgba(255,255,255,0.2)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}>
+          <div style={{ width: '52px', height: '52px', borderRadius: '50%', background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <ClipboardCheck size={24} color="white" />
           </div>
           <div>
-            <p style={{ fontWeight: '700', fontSize: '0.92rem', color: 'white', margin: 0 }}>
-              {t('takeTest')}
-            </p>
-            <p style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.75)', margin: '4px 0 0', lineHeight: 1.4 }}>
-              {t('takeTestSub')}
-            </p>
+            <p style={{ fontWeight: '700', fontSize: '0.92rem', color: 'white', margin: 0 }}>{t('takeTest')}</p>
+            <p style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.75)', margin: '4px 0 0', lineHeight: 1.4 }}>{t('takeTestSub')}</p>
           </div>
         </button>
       </div>
@@ -278,13 +287,14 @@ function App() {
       <Navbar />
       <main style={{ flex: 1, padding: '0 0 40px' }}>
         <Routes>
-          <Route path="/" element={<LandingPage />} />
+          <Route path="/"      element={<LandingPage />} />
           <Route path="/learn" element={<InfoPage />} />
-          <Route path="/quiz" element={<QuizPage />} />
+          <Route path="/quiz"  element={<QuizPage />} />
           <Route path="/admin" element={<AdminPage />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
+          <Route path="*"      element={<Navigate to="/" replace />} />
         </Routes>
       </main>
+      <Footer />
     </div>
   );
 }
