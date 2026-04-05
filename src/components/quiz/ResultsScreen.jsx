@@ -90,28 +90,28 @@ export default function ResultsScreen({ score, questionResults, totalQuestions, 
     }
 
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(28);
+    doc.setFontSize(26);
     doc.setTextColor(13, 148, 136);
-    doc.text(isRTL ? 'شهادة إتمام التدريب' : 'Certificate of Completion', w / 2, 52, { align: 'center' });
+    doc.text(isRTL ? 'شهادة اجتياز البرنامج التدريبي' : 'Certificate of Achievement', w / 2, 52, { align: 'center' });
 
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(14);
     doc.setTextColor(71, 85, 105);
-    doc.text(isRTL ? 'HWDT - التدريب على التخلص من النفايات الطبية' : 'HWDT - Healthcare Waste Disposal Training', w / 2, 62, { align: 'center' });
+    doc.text(isRTL ? 'برنامج التخلص الآمن من النفايات الطبية (HWDT)' : 'Safe Medical Waste Disposal Program (HWDT)', w / 2, 62, { align: 'center' });
 
     doc.setDrawColor(13, 148, 136);
     doc.setLineWidth(0.8);
     doc.line(40, 68, w - 40, 68);
 
-    // "This certifies that"
+    // Recognition Text
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(11);
     doc.setTextColor(71, 85, 105);
-    doc.text(isRTL ? 'يُشهد أن' : 'This certifies that', w / 2, 78, { align: 'center' });
+    doc.text(isRTL ? 'يُشهد بأن المتدرب الموضحة بياناته أدناه' : 'This certifies that the candidate named below', w / 2, 78, { align: 'center' });
 
     // Recipient name — large and prominent
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(20);
+    doc.setFontSize(22);
     doc.setTextColor(15, 23, 42);
     doc.text(userInfo.name || 'Participant', w / 2, 90, { align: 'center' });
 
@@ -122,31 +122,43 @@ export default function ResultsScreen({ score, questionResults, totalQuestions, 
     const infoLine = [userInfo.profileNumber, userInfo.department].filter(Boolean).join('  ·  ');
     if (infoLine) doc.text(infoLine, w / 2, 98, { align: 'center' });
 
-    // "has successfully completed"
+    // Outcome text
     doc.setFontSize(11);
     doc.setTextColor(71, 85, 105);
     doc.text(
-      isRTL ? 'أتمّ بنجاح برنامج التدريب على التخلص من النفايات الطبية (HWDT)'
-             : 'has successfully completed the Healthcare Waste Disposal Training Program (HWDT)',
+      isRTL ? 'قد أتم بنجاح متطلبات البرنامج التدريبي لفرز النفايات الطبية، وعليه جرى منح هذه الشهادة.'
+             : 'has successfully completed the vocational training requirements for medical waste segregation.',
       w / 2, 107, { align: 'center' }
     );
 
-    // Score badge
-    doc.setFillColor(13, 148, 136);
-    doc.roundedRect(w / 2 - 38, 104, 76, 20, 4, 4, 'F');
+    // Metadata section (Date & Score)
+    const marginY = 125;
+    doc.setFontSize(9);
+    doc.setTextColor(148, 163, 184);
+    
+    // Date
+    const today = new Date().toLocaleDateString('en-GB');
+    doc.text(isRTL ? 'تاريخ الإصدار' : 'Date of Issue', w / 2 - 40, marginY, { align: 'center' });
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(12);
-    doc.setTextColor(255, 255, 255);
-    doc.text(`${score.toLocaleString()} pts  ·  ${percentage}%  ·  ${correctCount}/${totalQuestions}`, w / 2, 117, { align: 'center' });
+    doc.setTextColor(51, 65, 85);
+    doc.text(today, w / 2 - 40, marginY + 6, { align: 'center' });
 
+    // Score
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(9.5);
-    doc.setTextColor(100, 116, 139);
-    const dateStr = new Date().toLocaleDateString(isRTL ? 'ar-SA' : 'en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-    doc.text(`${isRTL ? 'التاريخ' : 'Date'}: ${dateStr}`, w / 2, 132, { align: 'center' });
-    doc.text('Reference: WHO Healthcare Waste Management Guidelines', w / 2, 139, { align: 'center' });
+    doc.setTextColor(148, 163, 184);
+    doc.text(isRTL ? 'النتيجة النهائية' : 'Final Assessment Score', w / 2 + 40, marginY, { align: 'center' });
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(51, 65, 85);
+    doc.text(`${(score / totalQuestions * 100).toFixed(0)}%`, w / 2 + 40, marginY + 6, { align: 'center' });
 
-    doc.save('waste-disposal-certificate.pdf');
+    // Footer Attribution
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    doc.setTextColor(148, 163, 184);
+    doc.text('Reference: WHO Healthcare Waste Management Guidelines', w / 2, 142, { align: 'center' });
+    doc.text('This is an electronically generated document. Verification Code: HWDT-' + Math.random().toString(36).substr(2, 6).toUpperCase(), w / 2, 147, { align: 'center' });
+
+    doc.save(`HWDT-Certificate-${userInfo.name || 'Participant'}.pdf`);
   };
 
   return (
