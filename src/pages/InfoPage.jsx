@@ -1,134 +1,17 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { ChevronDown, ChevronUp, ArrowRight, BookOpen } from 'lucide-react';
+import { getWasteCategories } from '../data/wasteCategories';
 
-const CATEGORIES = [
-  {
-    id: 'general',
-    color: '#1E293B',
-    lightColor: '#1E293B18',
-    emoji: '🗑️',
-    name: 'General Waste (Black Bin)',
-    subtitle: 'Non-hazardous, non-infectious waste',
-    description:
-      'General waste makes up the majority of healthcare waste — roughly 75–90%. It includes items that have not come into contact with blood, body fluids, or hazardous chemicals. This waste is treated the same as municipal solid waste.',
-    examples: [
-      'Packaging materials (wrappers, boxes)',
-      'Clean gloves not exposed to body fluids',
-      'Food waste and patient meal containers',
-      'Paper, cardboard, administrative waste',
-      'Empty IV bags containing basic fluids (D5W, Normal Saline)',
-    ],
-    rules: [
-      'Never contaminate with infectious material',
-      'Do not mix with sharps or pharmaceutical waste',
-      'Standard black bag — municipal disposal pathway',
-    ],
-    reference: 'WHO Guidelines Ch. 4 — Non-hazardous Healthcare Waste',
-  },
-  {
-    id: 'infectious',
-    color: '#EAB308',
-    lightColor: '#EAB30818',
-    emoji: '⚠️',
-    name: 'Infectious Waste (Yellow Bin)',
-    subtitle: 'Waste containing pathogens in quantities sufficient to cause disease',
-    description:
-      'Infectious waste poses a biological risk to healthcare workers, patients, and the public. It includes anything contaminated with blood, body fluids, secretions, or excretions (other than sweat), as well as materials from isolation wards.',
-    examples: [
-      'Blood-soaked gauze, swabs, or dressings',
-      'Cultures and stocks of infectious agents',
-      'PPE worn during care for infectious patients (TB, COVID, etc.)',
-      'Contaminated N95 masks and face shields',
-      'Tissues and anatomical waste',
-    ],
-    rules: [
-      'Segregate at the point of generation',
-      'Double-bag for highly infectious material',
-      'Yellow bag — must be treated before final disposal (autoclave, incineration)',
-      'Label clearly with biohazard symbol',
-    ],
-    reference: 'WHO Guidelines Ch. 4.2 — Infectious and Pathological Waste',
-  },
-  {
-    id: 'sharps',
-    color: '#EF4444',
-    lightColor: '#EF444418',
-    emoji: '🔴',
-    name: 'Sharps / Biohazard (Red Bin)',
-    subtitle: 'Any item that can cause a cut or puncture wound',
-    description:
-      'Sharps are one of the most hazardous categories of healthcare waste. Even if the item contained only sterile or non-infectious material (e.g., saline), it is still classified as sharps waste because of its ability to cause injury and potential infection.',
-    examples: [
-      'Used and unused needles and syringes',
-      'Scalpel blades after surgical procedures',
-      'Broken glass ampoules (regardless of contents)',
-      'Lancets and blood glucose test needles',
-      'IV catheters and cannulas',
-    ],
-    rules: [
-      'Dispose immediately at point of use — never recap needles',
-      'Puncture-proof, leak-proof red sharps container',
-      'Never fill above ¾ full',
-      'Incineration is the preferred final disposal method',
-    ],
-    reference: 'WHO Guidelines Ch. 7 — Sharps Waste Management',
-  },
-  {
-    id: 'pharmaceutical',
-    color: '#3B82F6',
-    lightColor: '#3B82F618',
-    emoji: '💊',
-    name: 'Pharmaceutical Waste (Blue Bin)',
-    subtitle: 'Expired, unused, or contaminated pharmaceutical products',
-    description:
-      'Pharmaceutical waste includes drugs, vaccines, and related substances that are expired, unused, contaminated, or no longer needed. Improper disposal of pharmaceutical waste can contaminate water supplies and contribute to antimicrobial resistance.',
-    examples: [
-      'Expired medications and vaccines',
-      'Partially used antibiotic vials',
-      'Unused or excess chemotherapy drugs (cytotoxic)',
-      'Bottles and ampoules with pharmaceutical residues',
-      'Contaminated pharmaceutical packaging',
-    ],
-    rules: [
-      'Never flush medications down the drain',
-      'Cytotoxic drugs require separate handling — extremely hazardous',
-      'Blue container — dedicated pharmaceutical waste stream',
-      'Return unused drugs to pharmacy when possible',
-    ],
-    reference: 'WHO Guidelines Ch. 4.3 — Pharmaceutical Waste',
-  },
-];
-
-const KEY_PRINCIPLES = [
-  {
-    icon: '🏷️',
-    title: 'Segregate at the Source',
-    body: 'Waste must be sorted into the correct bin at the exact point where it is generated — the bedside, operating table, or treatment area. Never mix waste categories after the fact.',
-  },
-  {
-    icon: '🔒',
-    title: 'Color Coding is Mandatory',
-    body: 'Each waste category has a designated color. Black = General, Yellow = Infectious, Red = Sharps, Blue = Pharmaceutical. The color of the bin is not a suggestion — it is a regulatory requirement.',
-  },
-  {
-    icon: '⚡',
-    title: 'Sharps: Immediate Disposal',
-    body: 'Used sharps must be placed in the sharps container immediately after use. Never recap needles using two hands. Needle-stick injuries are the leading cause of bloodborne pathogen exposure in healthcare settings.',
-  },
-  {
-    icon: '📋',
-    title: 'When in Doubt, Treat as Infectious',
-    body: 'If you are unsure whether an item is infectious or general waste, default to the infectious waste (yellow) bin. Over-segregation is safer than under-segregation.',
-  },
-];
-
-function CategoryCard({ cat }) {
+function CategoryCard({ cat, t }) {
   const [open, setOpen] = useState(false);
+  const isRTL = document.dir === 'rtl';
+
   return (
     <div style={{
       borderRadius: 'var(--radius-lg)',
-      border: `2px solid ${cat.color}44`,
+      border: `2px solid ${cat.hexCode}44`,
       background: 'var(--color-bg-white)',
       overflow: 'hidden',
       boxShadow: 'var(--shadow-sm)',
@@ -140,51 +23,79 @@ function CategoryCard({ cat }) {
           width: '100%',
           display: 'flex',
           alignItems: 'center',
-          gap: '14px',
+          gap: '16px',
           padding: '18px 20px',
-          background: cat.lightColor,
+          background: `${cat.hexCode}08`,
           border: 'none',
           cursor: 'pointer',
-          textAlign: 'start',
+          textAlign: isRTL ? 'right' : 'left',
+          flexDirection: isRTL ? 'row-reverse' : 'row'
         }}
       >
         <div style={{
-          width: '48px',
-          height: '58px',
+          width: '60px',
+          height: '60px',
           flexShrink: 0,
-          background: cat.color,
-          borderRadius: '6px 6px 4px 4px',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          fontSize: '1.4rem',
         }}>
-          {cat.emoji}
+          <img 
+            src={cat.imageUrl} 
+            alt={t(`cat_${cat.id}_name`)} 
+            style={{ width: '100%', height: '100%', objectFit: 'contain' }} 
+          />
         </div>
         <div style={{ flex: 1 }}>
-          <p style={{ fontWeight: '800', fontSize: '1rem', color: 'var(--color-text-main)', margin: 0 }}>{cat.name}</p>
-          <p style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', margin: '2px 0 0' }}>{cat.subtitle}</p>
+          <p style={{ fontWeight: '800', fontSize: '1.05rem', color: 'var(--color-text-main)', margin: 0 }}>
+            {t(`cat_${cat.id}_name`)}
+          </p>
+          <p style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)', margin: '2px 0 0' }}>
+            {t(`cat_${cat.id}_subtitle`)}
+          </p>
         </div>
         {open ? <ChevronUp size={20} color="var(--color-text-muted)" /> : <ChevronDown size={20} color="var(--color-text-muted)" />}
       </button>
 
       {/* Body */}
       {open && (
-        <div style={{ padding: '20px', borderTop: `1px solid ${cat.color}33` }}>
-          <p style={{ color: 'var(--color-text-muted)', fontSize: '0.9rem', lineHeight: 1.7, marginBottom: '16px' }}>
-            {cat.description}
+        <div style={{ padding: '24px', borderTop: `1px solid ${cat.hexCode}22` }}>
+          <p style={{ color: 'var(--color-text-muted)', fontSize: '0.95rem', lineHeight: 1.75, marginBottom: '20px' }}>
+            {t(`cat_${cat.id}_desc`)}
           </p>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+          <div style={{ 
+            display: 'grid', 
+            gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', 
+            gap: '24px', 
+            marginBottom: '20px' 
+          }}>
             {/* Examples */}
             <div>
-              <p style={{ fontWeight: '700', fontSize: '0.82rem', color: 'var(--color-text-main)', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                Examples
+              <p style={{ 
+                fontWeight: '800', 
+                fontSize: '0.8rem', 
+                color: 'var(--color-text-main)', 
+                marginBottom: '12px', 
+                textTransform: 'uppercase', 
+                letterSpacing: '0.05em',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px'
+              }}>
+                <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: cat.hexCode }}></span>
+                {t('examples')}
               </p>
-              <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                {cat.examples.map(ex => (
-                  <li key={ex} style={{ fontSize: '0.82rem', color: 'var(--color-text-muted)', display: 'flex', alignItems: 'flex-start', gap: '6px' }}>
-                    <span style={{ color: cat.color, fontWeight: '700', flexShrink: 0 }}>•</span>
+              <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {(t(`cat_${cat.id}_ex`, { returnObjects: true }) || []).map((ex, idx) => (
+                  <li key={idx} style={{ 
+                    fontSize: '0.9rem', 
+                    color: 'var(--color-text-muted)', 
+                    display: 'flex', 
+                    alignItems: 'flex-start', 
+                    gap: '8px' 
+                  }}>
+                    <span style={{ color: cat.hexCode, fontWeight: '700', flexShrink: 0 }}>•</span>
                     {ex}
                   </li>
                 ))}
@@ -193,12 +104,29 @@ function CategoryCard({ cat }) {
 
             {/* Rules */}
             <div>
-              <p style={{ fontWeight: '700', fontSize: '0.82rem', color: 'var(--color-text-main)', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                Key Rules
+              <p style={{ 
+                fontWeight: '800', 
+                fontSize: '0.8rem', 
+                color: 'var(--color-text-main)', 
+                marginBottom: '12px', 
+                textTransform: 'uppercase', 
+                letterSpacing: '0.05em',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px'
+              }}>
+                <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--color-success)' }}></span>
+                {t('keyRules')}
               </p>
-              <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                {cat.rules.map(rule => (
-                  <li key={rule} style={{ fontSize: '0.82rem', color: 'var(--color-text-muted)', display: 'flex', alignItems: 'flex-start', gap: '6px' }}>
+              <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {(t(`cat_${cat.id}_rules`, { returnObjects: true }) || []).map((rule, idx) => (
+                  <li key={idx} style={{ 
+                    fontSize: '0.9rem', 
+                    color: 'var(--color-text-muted)', 
+                    display: 'flex', 
+                    alignItems: 'flex-start', 
+                    gap: '8px' 
+                  }}>
                     <span style={{ color: 'var(--color-success)', fontWeight: '700', flexShrink: 0 }}>✓</span>
                     {rule}
                   </li>
@@ -207,9 +135,17 @@ function CategoryCard({ cat }) {
             </div>
           </div>
 
-          <p style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', fontStyle: 'italic' }}>
-            📋 {cat.reference}
-          </p>
+          <div style={{ 
+            marginTop: '16px', 
+            padding: '10px 14px', 
+            background: 'var(--color-bg-light)', 
+            borderRadius: '6px',
+            borderLeft: `3px solid ${cat.hexCode}`
+          }}>
+            <p style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', fontStyle: 'italic', margin: 0 }}>
+              📋 {t(`cat_${cat.id}_ref`)}
+            </p>
+          </div>
         </div>
       )}
     </div>
@@ -219,100 +155,167 @@ function CategoryCard({ cat }) {
 export default function InfoPage() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { t, i18n } = useTranslation();
   const userInfo = location.state?.userInfo;
+  const isRTL = i18n.language === 'ar';
+
+  const categories = useMemo(() => getWasteCategories(i18n.language), [i18n.language]);
+
+  const principals = [
+    { id: 1, icon: '🏷️' },
+    { id: 2, icon: '🔒' },
+    { id: 3, icon: '⚡' },
+    { id: 4, icon: '📋' },
+  ];
 
   const handleStartTest = () => {
     navigate('/quiz', { state: { userInfo } });
   };
 
   return (
-    <div className="container" style={{ maxWidth: '760px', marginTop: '28px', marginBottom: '60px' }}>
-      {/* Header */}
+    <div className="container" style={{ 
+      maxWidth: '800px', 
+      marginTop: '28px', 
+      marginBottom: '60px',
+      direction: isRTL ? 'rtl' : 'ltr'
+    }}>
+      {/* Header Section */}
       <div style={{
         background: 'var(--color-bg-white)',
         borderRadius: 'var(--radius-lg)',
         boxShadow: 'var(--shadow-md)',
-        padding: '28px 32px',
-        marginBottom: '24px',
+        padding: '32px',
+        marginBottom: '32px',
         display: 'flex',
         alignItems: 'flex-start',
-        gap: '16px',
+        gap: '20px',
+        flexDirection: isRTL ? 'row-reverse' : 'row',
+        textAlign: isRTL ? 'right' : 'left'
       }}>
-        <BookOpen size={36} color="var(--color-primary)" style={{ flexShrink: 0, marginTop: '2px' }} />
+        <div style={{
+          width: '56px',
+          height: '56px',
+          borderRadius: '12px',
+          background: 'var(--color-primary-light)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          flexShrink: 0
+        }}>
+          <BookOpen size={32} color="var(--color-primary)" />
+        </div>
         <div>
-          <h2 style={{ fontSize: '1.5rem', fontWeight: '800', color: 'var(--color-text-main)', marginBottom: '6px' }}>
-            Medical Waste Disposal Guide
+          <h2 style={{ fontSize: '1.6rem', fontWeight: '900', color: 'var(--color-text-main)', marginBottom: '8px' }}>
+            {t('medicalWasteGuide')}
           </h2>
-          <p style={{ color: 'var(--color-text-muted)', fontSize: '0.9rem', lineHeight: 1.65 }}>
-            Based on WHO Healthcare Waste Management Guidelines. Read through the four waste categories, their examples, and disposal rules before taking the assessment.
+          <p style={{ color: 'var(--color-text-muted)', fontSize: '0.95rem', lineHeight: 1.7 }}>
+            {t('medicalWasteGuideSub')}
           </p>
         </div>
       </div>
 
-      {/* Key principles */}
+      {/* Key Principles Grid */}
+      <h3 style={{ 
+        fontWeight: '800', 
+        fontSize: '0.9rem', 
+        color: 'var(--color-text-muted)', 
+        marginBottom: '16px', 
+        textTransform: 'uppercase', 
+        letterSpacing: '0.05em',
+        textAlign: isRTL ? 'right' : 'left'
+      }}>
+        {t('keyPrinciples')}
+      </h3>
       <div style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
-        gap: '12px',
-        marginBottom: '24px',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+        gap: '16px',
+        marginBottom: '40px',
       }}>
-        {KEY_PRINCIPLES.map(p => (
-          <div key={p.title} style={{
+        {principals.map(p => (
+          <div key={p.id} style={{
             background: 'var(--color-bg-white)',
             borderRadius: 'var(--radius-md)',
-            padding: '16px',
+            padding: '20px',
             boxShadow: 'var(--shadow-sm)',
             display: 'flex',
-            gap: '12px',
+            gap: '16px',
             alignItems: 'flex-start',
+            flexDirection: isRTL ? 'row-reverse' : 'row',
+            textAlign: isRTL ? 'right' : 'left'
           }}>
-            <span style={{ fontSize: '1.5rem', lineHeight: 1, flexShrink: 0 }}>{p.icon}</span>
+            <span style={{ fontSize: '1.75rem', lineHeight: 1, flexShrink: 0 }}>{p.icon}</span>
             <div>
-              <p style={{ fontWeight: '700', fontSize: '0.88rem', color: 'var(--color-text-main)', marginBottom: '4px' }}>{p.title}</p>
-              <p style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', lineHeight: 1.6 }}>{p.body}</p>
+              <p style={{ fontWeight: '800', fontSize: '1rem', color: 'var(--color-text-main)', marginBottom: '6px' }}>
+                {t(`principle${p.id}_title`)}
+              </p>
+              <p style={{ fontSize: '0.88rem', color: 'var(--color-text-muted)', lineHeight: 1.6 }}>
+                {t(`principle${p.id}_body`)}
+              </p>
             </div>
           </div>
         ))}
       </div>
 
-      {/* Category cards */}
-      <p style={{ fontWeight: '700', fontSize: '0.85rem', color: 'var(--color-text-muted)', marginBottom: '12px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-        The Four Waste Categories — click to expand
-      </p>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '32px' }}>
-        {CATEGORIES.map(cat => <CategoryCard key={cat.id} cat={cat} />)}
+      {/* Categories Accordion */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '16px' }}>
+        <h3 style={{ 
+          fontWeight: '800', 
+          fontSize: '0.9rem', 
+          color: 'var(--color-text-muted)', 
+          margin: 0, 
+          textTransform: 'uppercase', 
+          letterSpacing: '0.05em' 
+        }}>
+          {t('fourCategories')}
+        </h3>
+        <span style={{ fontSize: '0.75rem', color: 'var(--color-primary)', fontWeight: '700' }}>
+          {t('clickToExpand')}
+        </span>
+      </div>
+      
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '48px' }}>
+        {categories.map(cat => <CategoryCard key={cat.id} cat={cat} t={t} />)}
       </div>
 
-      {/* Start test CTA */}
+      {/* Start Test CTA */}
       <div style={{
-        background: 'linear-gradient(135deg, var(--color-primary), var(--color-primary-dark))',
+        background: 'linear-gradient(135deg, var(--color-primary-dark), var(--color-primary))',
         borderRadius: 'var(--radius-lg)',
-        padding: '28px 32px',
+        padding: '40px',
         textAlign: 'center',
         boxShadow: 'var(--shadow-lg)',
+        color: 'white'
       }}>
-        <p style={{ color: 'rgba(255,255,255,0.85)', fontSize: '0.9rem', marginBottom: '16px' }}>
-          Ready to test your knowledge? You have <strong>10 seconds</strong> per question.
+        <h4 style={{ fontSize: '1.4rem', fontWeight: '900', marginBottom: '12px' }}>
+          {t('readyToTest')}
+        </h4>
+        <p style={{ color: 'rgba(255,255,255,0.9)', fontSize: '1rem', marginBottom: '24px', maxWidth: '500px', margin: '0 auto 24px' }}>
+          {t('takeTestSub')}
         </p>
         <button
           onClick={handleStartTest}
           style={{
             display: 'inline-flex',
             alignItems: 'center',
-            gap: '10px',
-            padding: '14px 32px',
+            gap: '12px',
+            padding: '16px 40px',
             background: 'white',
             color: 'var(--color-primary-dark)',
             border: 'none',
             borderRadius: 'var(--radius-md)',
-            fontWeight: '800',
-            fontSize: '1rem',
+            fontWeight: '900',
+            fontSize: '1.1rem',
             cursor: 'pointer',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+            boxShadow: '0 8px 24px rgba(0,0,0,0.2)',
+            transition: 'transform 0.2s',
+            flexDirection: isRTL ? 'row-reverse' : 'row'
           }}
+          onMouseOver={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
+          onMouseOut={(e) => e.currentTarget.style.transform = 'translateY(0)'}
         >
-          Start Assessment
-          <ArrowRight size={18} />
+          {t('startAssessment')}
+          <ArrowRight size={22} style={{ transform: isRTL ? 'rotate(180deg)' : 'none' }} />
         </button>
       </div>
     </div>

@@ -8,17 +8,9 @@ import Logo from './components/Logo';
 import { BookOpen, ClipboardCheck, User, Hash, Building2, Settings } from 'lucide-react';
 
 const DEPARTMENTS = [
-  'Emergency Department',
-  'Intensive Care Unit (ICU)',
-  'Operating Room',
-  'General Ward',
-  'Pediatrics',
-  'Oncology',
-  'Radiology',
-  'Laboratory',
-  'Pharmacy',
-  'Outpatient Clinic',
-  'Other',
+  'emergency', 'icu', 'operating', 'general', 'pediatrics', 
+  'oncology', 'radiology', 'laboratory', 'pharmacy', 
+  'outpatient', 'other'
 ];
 
 function Navbar() {
@@ -82,15 +74,16 @@ function Navbar() {
 }
 
 function LandingPage() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [form, setForm] = useState({ name: '', profileNumber: '', department: '' });
   const [errors, setErrors] = useState({});
 
   const validate = () => {
     const e = {};
-    if (!form.name.trim()) e.name = 'Name is required';
-    if (!form.profileNumber.trim()) e.profileNumber = 'Profile number is required';
-    if (!form.department) e.department = 'Department is required';
+    if (!form.name.trim()) e.name = t('nameRequired');
+    if (!form.profileNumber.trim()) e.profileNumber = t('profileRequired');
+    if (!form.department) e.department = t('deptRequired');
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -141,10 +134,10 @@ function LandingPage() {
           <Logo size={80} />
         </div>
         <h2 style={{ fontSize: '1.75rem', fontWeight: '800', color: 'var(--color-text-main)', marginBottom: '10px' }}>
-          Healthcare Waste Disposal Training
+          {t('landingHeroTitle')}
         </h2>
         <p style={{ color: 'var(--color-text-muted)', fontSize: '0.92rem', lineHeight: 1.65, maxWidth: '440px', margin: '0 auto' }}>
-          Interactive, WHO-based medical waste sorting assessment. Drag items into the correct bin — race against the clock and earn your certificate.
+          {t('landingHeroSub')}
         </p>
       </div>
 
@@ -158,18 +151,18 @@ function LandingPage() {
       }}>
         <p style={{ fontWeight: '700', fontSize: '0.9rem', color: 'var(--color-text-main)', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
           <User size={16} color="var(--color-primary)" />
-          Your Information
+          {t('userInfoTitle')}
         </p>
 
         {/* Name */}
         <div style={{ marginBottom: '16px' }}>
           <label style={labelStyle}>
             <User size={13} />
-            Full Name
+            {t('fullName')}
           </label>
           <input
             type="text"
-            placeholder="e.g. Ahmed Al-Rashid"
+            placeholder={t('fullName')}
             style={inputStyle(!!errors.name)}
             {...field('name')}
           />
@@ -180,11 +173,11 @@ function LandingPage() {
         <div style={{ marginBottom: '16px' }}>
           <label style={labelStyle}>
             <Hash size={13} />
-            Profile / Employee Number
+            {t('profileNumber')}
           </label>
           <input
             type="text"
-            placeholder="e.g. EMP-20451"
+            placeholder={t('profileNumber')}
             style={inputStyle(!!errors.profileNumber)}
             {...field('profileNumber')}
           />
@@ -195,7 +188,7 @@ function LandingPage() {
         <div>
           <label style={labelStyle}>
             <Building2 size={13} />
-            Department
+            {t('department')}
           </label>
           <select
             style={{ ...inputStyle(!!errors.department), cursor: 'pointer' }}
@@ -205,8 +198,8 @@ function LandingPage() {
               if (errors.department) setErrors(er => ({ ...er, department: undefined }));
             }}
           >
-            <option value="">Select your department…</option>
-            {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
+            <option value="">{t('selectDepartment')}</option>
+            {DEPARTMENTS.map(d => <option key={d} value={d}>{t(`dept_${d}`)}</option>)}
           </select>
           {errors.department && <p style={{ fontSize: '0.78rem', color: 'var(--color-danger)', marginTop: '4px' }}>{errors.department}</p>}
         </div>
@@ -243,10 +236,10 @@ function LandingPage() {
           </div>
           <div>
             <p style={{ fontWeight: '700', fontSize: '0.92rem', color: 'var(--color-text-main)', margin: 0 }}>
-              Read First
+              {t('readFirst')}
             </p>
             <p style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', margin: '4px 0 0', lineHeight: 1.4 }}>
-              Learn about the 4 waste categories before the test
+              {t('readFirstSub')}
             </p>
           </div>
         </button>
@@ -280,10 +273,10 @@ function LandingPage() {
           </div>
           <div>
             <p style={{ fontWeight: '700', fontSize: '0.92rem', color: 'white', margin: 0 }}>
-              Take the Test
+              {t('takeTest')}
             </p>
             <p style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.75)', margin: '4px 0 0', lineHeight: 1.4 }}>
-              Jump straight in — 10 questions, 10 sec each
+              {t('takeTestSub')}
             </p>
           </div>
         </button>
