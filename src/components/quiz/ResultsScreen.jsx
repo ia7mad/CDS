@@ -10,6 +10,7 @@ import {
 } from 'chart.js';
 import { Bar } from 'react-chartjs-2';
 import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Tooltip);
 
@@ -25,6 +26,7 @@ export default function ResultsScreen({ score, questionResults, totalQuestions, 
   const isRTL = i18n.language === 'ar';
   const binNames = getBinNames(i18n.language);
   const [reviewOpen, setReviewOpen] = useState(false);
+  const [generating, setGenerating] = useState(false);
 
   const correctCount = questionResults.filter(r => r.correct).length;
   const percentage = Math.round((correctCount / totalQuestions) * 100);
@@ -55,110 +57,40 @@ export default function ResultsScreen({ score, questionResults, totalQuestions, 
   };
 
   const handleDownloadCertificate = async () => {
-    const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
-    const w = doc.internal.pageSize.getWidth();
-    const h = doc.internal.pageSize.getHeight();
+    const template = document.getElementById('certificate-template');
+    if (!template) return;
 
-    // Helper to get DataURL for PNG
-    const getLogoData = () => new Promise((resolve) => {
-      const img = new Image();
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        canvas.width = img.width;
-        canvas.height = img.height;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0);
-        resolve(canvas.toDataURL('image/png'));
-      };
-      img.onerror = () => resolve(null);
-      img.src = `${import.meta.env.BASE_URL}logo.png`;
-    });
+    setGenerating(true);
+    try {
+      // Ensure the template is visible long enough for capture
+      template.style.display = 'block';
+      
+      const canvas = await html2canvas(template, {
+        scale: 3, // High DPI for crisp text
+        useCORS: true,
+        logging: false,
+        backgroundColor: '#f8fafc'
+      });
 
-    const logoData = await getLogoData();
+      template.style.display = 'none';
 
-    doc.setFillColor(248, 250, 252);
-    doc.rect(0, 0, w, h, 'F');
-    doc.setDrawColor(13, 148, 136);
-    doc.setLineWidth(2);
-    doc.rect(8, 8, w - 16, h - 16, 'S');
-    doc.setLineWidth(0.5);
-    doc.rect(11, 11, w - 22, h - 22, 'S');
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF({
+        orientation: 'landscape',
+        unit: 'mm',
+        format: 'a4'
+      });
 
-    // Add Logo Image
-    if (logoData) {
-      doc.addImage(logoData, 'PNG', w / 2 - 12, 18, 24, 24);
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+      
+      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+      pdf.save(`HWDT-Certificate-${userInfo.name || 'Participant'}.pdf`);
+    } catch (err) {
+      console.error('Cert generation failed:', err);
+    } finally {
+      setGenerating(false);
     }
-
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(26);
-    doc.setTextColor(13, 148, 136);
-    doc.text(isRTL ? 'شهادة اجتياز البرنامج التدريبي' : 'Certificate of Achievement', w / 2, 52, { align: 'center' });
-
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(14);
-    doc.setTextColor(71, 85, 105);
-    doc.text(isRTL ? 'برنامج التخلص الآمن من النفايات الطبية (HWDT)' : 'Safe Medical Waste Disposal Program (HWDT)', w / 2, 62, { align: 'center' });
-
-    doc.setDrawColor(13, 148, 136);
-    doc.setLineWidth(0.8);
-    doc.line(40, 68, w - 40, 68);
-
-    // Recognition Text
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(11);
-    doc.setTextColor(71, 85, 105);
-    doc.text(isRTL ? 'يُشهد بأن المتدرب الموضحة بياناته أدناه' : 'This certifies that the candidate named below', w / 2, 78, { align: 'center' });
-
-    // Recipient name — large and prominent
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(22);
-    doc.setTextColor(15, 23, 42);
-    doc.text(userInfo.name || 'Participant', w / 2, 90, { align: 'center' });
-
-    // Profile & department
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(10);
-    doc.setTextColor(100, 116, 139);
-    const infoLine = [userInfo.profileNumber, userInfo.department].filter(Boolean).join('  ·  ');
-    if (infoLine) doc.text(infoLine, w / 2, 98, { align: 'center' });
-
-    // Outcome text
-    doc.setFontSize(11);
-    doc.setTextColor(71, 85, 105);
-    doc.text(
-      isRTL ? 'قد أتم بنجاح متطلبات البرنامج التدريبي لفرز النفايات الطبية، وعليه جرى منح هذه الشهادة.'
-             : 'has successfully completed the vocational training requirements for medical waste segregation.',
-      w / 2, 107, { align: 'center' }
-    );
-
-    // Metadata section (Date & Score)
-    const marginY = 125;
-    doc.setFontSize(9);
-    doc.setTextColor(148, 163, 184);
-    
-    // Date
-    const today = new Date().toLocaleDateString('en-GB');
-    doc.text(isRTL ? 'تاريخ الإصدار' : 'Date of Issue', w / 2 - 40, marginY, { align: 'center' });
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(51, 65, 85);
-    doc.text(today, w / 2 - 40, marginY + 6, { align: 'center' });
-
-    // Score
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(148, 163, 184);
-    doc.text(isRTL ? 'النتيجة النهائية' : 'Final Assessment Score', w / 2 + 40, marginY, { align: 'center' });
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(51, 65, 85);
-    doc.text(`${(score / totalQuestions * 100).toFixed(0)}%`, w / 2 + 40, marginY + 6, { align: 'center' });
-
-    // Footer Attribution
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(9);
-    doc.setTextColor(148, 163, 184);
-    doc.text('Reference: WHO Healthcare Waste Management Guidelines', w / 2, 142, { align: 'center' });
-    doc.text('This is an electronically generated document. Verification Code: HWDT-' + Math.random().toString(36).substr(2, 6).toUpperCase(), w / 2, 147, { align: 'center' });
-
-    doc.save(`HWDT-Certificate-${userInfo.name || 'Participant'}.pdf`);
   };
 
   return (
@@ -244,16 +176,18 @@ export default function ResultsScreen({ score, questionResults, totalQuestions, 
           {passed && (
             <button
               onClick={handleDownloadCertificate}
+              disabled={generating}
               style={{
                 display: 'inline-flex', alignItems: 'center', gap: '8px',
                 padding: '11px 24px', background: 'var(--color-primary)',
                 color: 'white', border: 'none', borderRadius: 'var(--radius-md)',
                 fontWeight: '700', fontSize: '0.9rem', cursor: 'pointer',
                 boxShadow: 'var(--shadow-md)',
+                opacity: generating ? 0.7 : 1
               }}
             >
-              <Award size={16} />
-              {t('downloadCertificate')}
+              <Award size={16} className={generating ? 'animate-spin' : ''} />
+              {generating ? t('generating') || 'Generating...' : t('downloadCertificate')}
             </button>
           )}
         </div>
@@ -355,6 +289,127 @@ export default function ResultsScreen({ score, questionResults, totalQuestions, 
           )}
         </div>
       )}
+      {/* ── Hidden Certificate Template (for html2canvas) ── */}
+      <div 
+        id="certificate-template"
+        style={{
+          display: 'none', // Capture logic toggles this
+          position: 'fixed',
+          top: '-2000px',
+          left: '-2000px',
+          width: '1122px', // A4 Landscape ratio
+          height: '793px',
+          backgroundColor: '#f8fafc',
+          padding: '40px',
+          boxSizing: 'border-box',
+          fontFamily: 'Inter, system-ui, -apple-system, sans-serif',
+          direction: isRTL ? 'rtl' : 'ltr',
+          textAlign: 'center'
+        }}
+      >
+        <div style={{
+          height: '100%',
+          border: '8px solid #0d948a',
+          padding: '2px',
+          boxSizing: 'border-box'
+        }}>
+          <div style={{
+            height: '100%',
+            border: '2px solid #0d948a',
+            padding: '40px',
+            boxSizing: 'border-box',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}>
+            {/* Logo */}
+            <img 
+              src={`${import.meta.env.BASE_URL}logo.png`}
+              alt="Logo"
+              style={{ width: '100px', marginBottom: '30px' }}
+            />
+
+            {/* Title */}
+            <h1 style={{ 
+              fontSize: '48px', 
+              color: '#0d948a', 
+              margin: '0 0 10px 0',
+              fontWeight: '900'
+            }}>
+              {isRTL ? 'شهادة اجتياز البرنامج التدريبي' : 'Certificate of Achievement'}
+            </h1>
+            
+            <p style={{ 
+              fontSize: '24px', 
+              color: '#475569', 
+              margin: '0 0 30px 0' 
+            }}>
+              {isRTL ? 'برنامج التخلص الآمن من النفايات الطبية (HWDT)' : 'Safe Medical Waste Disposal Program (HWDT)'}
+            </p>
+
+            <div style={{ width: '80%', height: '2px', backgroundColor: '#0d948a', margin: '0 auto 40px' }} />
+
+            <p style={{ fontSize: '20px', color: '#64748b', margin: '0 0 15px 0' }}>
+              {isRTL ? 'يُشهد بأن المتدرب الموضحة بياناته أدناه' : 'This certifies that the candidate named below'}
+            </p>
+
+            <h2 style={{ 
+              fontSize: '42px', 
+              color: '#0f172a', 
+              margin: '0 0 15px 0',
+              fontWeight: '800'
+            }}>
+              {userInfo.name || 'Participant'}
+            </h2>
+
+            <p style={{ fontSize: '18px', color: '#94a3b8', margin: '0 0 30px 0' }}>
+              {[userInfo.profileNumber, userInfo.department].filter(Boolean).join('  ·  ')}
+            </p>
+
+            <p style={{ 
+              fontSize: '20px', 
+              color: '#475569', 
+              lineHeight: '1.6',
+              maxWidth: '80%',
+              margin: '0 auto 50px'
+            }}>
+              {isRTL 
+                ? 'قد أتم بنجاح متطلبات البرنامج التدريبي لفرز النفايات الطبية، جرى منح هذه الشهادة اعترافاً بإنجازه.'
+                : 'has successfully completed the vocational training requirements for medical waste segregation, earning this certificate in recognition of their achievement.'}
+            </p>
+
+            {/* Footer metadata */}
+            <div style={{ display: 'flex', width: '100%', justifyContent: 'space-around', marginTop: 'auto' }}>
+              <div>
+                <p style={{ fontSize: '14px', color: '#94a3b8', margin: '0 0 5px 0' }}>
+                  {isRTL ? 'تاريخ الإصدار' : 'Date of Issue'}
+                </p>
+                <p style={{ fontSize: '18px', fontWeight: 'bold', color: '#334155', margin: 0 }}>
+                  {new Date().toLocaleDateString('en-GB')}
+                </p>
+              </div>
+              <div>
+                <p style={{ fontSize: '14px', color: '#94a3b8', margin: '0 0 5px 0' }}>
+                  {isRTL ? 'النتيجة النهائية' : 'Final Assessment Score'}
+                </p>
+                <p style={{ fontSize: '18px', fontWeight: 'bold', color: '#334155', margin: 0 }}>
+                  {(score / totalQuestions * 100).toFixed(0)}%
+                </p>
+              </div>
+            </div>
+
+            <div style={{ marginTop: '50px' }}>
+              <p style={{ fontSize: '12px', color: '#cbd5e1', margin: 0 }}>
+                Reference: WHO Healthcare Waste Management Guidelines
+              </p>
+              <p style={{ fontSize: '11px', color: '#cbd5e1', margin: '5px 0 0 0' }}>
+                Electronic Verification Code: HWDT-{Math.random().toString(36).substr(2, 6).toUpperCase()}
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
