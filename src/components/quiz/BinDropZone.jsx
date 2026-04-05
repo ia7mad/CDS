@@ -86,8 +86,8 @@ export default function BinDropZone({
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        gap: '6px',
-        padding: '16px 12px',
+        gap: window.innerWidth < 500 ? '3px' : '6px',
+        padding: window.innerWidth < 500 ? '10px 4px' : '16px 12px',
         background: 'var(--color-bg-white)',
         borderRadius: 'var(--radius-lg)',
         border: `2px solid ${borderColor}`,
@@ -103,7 +103,7 @@ export default function BinDropZone({
     >
       {/* Realistic Bin Image */}
       <div style={{
-        height: '80px',
+        height: window.innerWidth < 500 ? '48px' : '80px',
         width: '100%',
         display: 'flex',
         alignItems: 'center',
@@ -140,12 +140,14 @@ export default function BinDropZone({
       </div>
 
       <div style={{ textAlign: 'center' }}>
-        <p style={{ fontWeight: '800', color: 'var(--color-text-main)', fontSize: '0.82rem', marginBottom: '1px' }}>
+        <p style={{ fontWeight: '800', color: 'var(--color-text-main)', fontSize: window.innerWidth < 500 ? '0.62rem' : '0.82rem', marginBottom: '1px', lineHeight: 1.2 }}>
           {bin.name}
         </p>
-        <p style={{ fontSize: '0.68rem', color: 'var(--color-text-muted)', lineHeight: 1.3 }}>
-          {bin.description.length > 35 ? bin.description.substring(0, 35) + '…' : bin.description}
-        </p>
+        {window.innerWidth >= 500 && (
+          <p style={{ fontSize: '0.68rem', color: 'var(--color-text-muted)', lineHeight: 1.3 }}>
+            {bin.description.length > 35 ? bin.description.substring(0, 35) + '…' : bin.description}
+          </p>
+        )}
       </div>
 
       {isDragOver && (
