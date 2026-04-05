@@ -3,10 +3,11 @@ import React from 'react';
 /**
  * Official Logo: HWDT (Healthcare Waste Disposal Training)
  * 
- * Renders the official PNG logo from public/logo.png.
+ * Uses logo-icon.png (transparent, cropped icon mark) for the UI,
+ * and the full logo.png is kept for the certificate.
  */
 export default function Logo({ size = 40, showText = false }) {
-  const logoSrc = `${import.meta.env.BASE_URL}logo.png`;
+  const logoSrc = `${import.meta.env.BASE_URL}logo-icon.png`;
 
   return (
     <div style={{ display: 'inline-flex', alignItems: 'center', gap: '12px' }}>
