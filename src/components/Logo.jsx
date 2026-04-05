@@ -3,19 +3,15 @@ import React from 'react';
 /**
  * Official Logo: HWDT (Healthcare Waste Disposal Training)
  * 
- * Design: Features the official PNG logo and rebranded text.
+ * Renders the official PNG logo from public/logo.png.
  */
-export default function Logo({ size = 40, textColor = 'var(--color-text-main)', showText = false }) {
-  // Use the Vite public path for the logo
-  const logoPath = `${import.meta.env.BASE_URL}logo.png`.replace(/\/+$/, '') + '/logo.png';
-  // Correction: import.meta.env.BASE_URL already contains the trailing slash if needed.
-  // Actually, standard is:
-  const finalLogoPath = `${import.meta.env.BASE_URL}logo.png`;
+export default function Logo({ size = 40, showText = false }) {
+  const logoSrc = `${import.meta.env.BASE_URL}logo.png`;
 
   return (
     <div style={{ display: 'inline-flex', alignItems: 'center', gap: '12px' }}>
       <img 
-        src={finalLogoPath} 
+        src={logoSrc} 
         alt="HWDT Logo" 
         style={{ 
           width: size, 
