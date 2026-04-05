@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { ChevronDown, ChevronUp, ArrowRight, BookOpen } from 'lucide-react';
 import { getWasteCategories } from '../data/wasteCategories';
@@ -156,8 +156,14 @@ export default function InfoPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { t, i18n } = useTranslation();
-  const userInfo = location.state?.userInfo;
   const isRTL = i18n.language === 'ar';
+
+  const userInfo = location.state?.userInfo || (() => {
+    const stored = sessionStorage.getItem('cds_user_info');
+    return stored ? JSON.parse(stored) : null;
+  })();
+
+  if (!userInfo) return <Navigate to="/" replace />;
 
   const categories = useMemo(() => getWasteCategories(i18n.language), [i18n.language]);
 

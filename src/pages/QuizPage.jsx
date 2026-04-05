@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate, Navigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { GripVertical, Hand, Clock, Layers } from 'lucide-react';
 import { getQuestions } from '../data/questions';
@@ -31,7 +31,14 @@ function calcPoints(timeLeft) {
 export default function QuizPage() {
   const { t, i18n } = useTranslation();
   const location = useLocation();
-  const userInfo = location.state?.userInfo || { name: '', profileNumber: '', department: '' };
+  const navigate = useNavigate();
+
+  const userInfo = location.state?.userInfo || (() => {
+    const stored = sessionStorage.getItem('cds_user_info');
+    return stored ? JSON.parse(stored) : null;
+  })();
+
+  if (!userInfo) return <Navigate to="/" replace />;
 
   const questionsList = useMemo(() => getQuestions(i18n.language), [i18n.language]);
   const wasteCategories = useMemo(() => getWasteCategories(i18n.language), [i18n.language]);
@@ -172,7 +179,7 @@ export default function QuizPage() {
     }
   };
 
-  const restart = () => window.location.href = '/';
+  const restart = () => navigate('/');
 
   // ── Drag handlers ──
   const handleDragStart = () => setIsDragging(true);

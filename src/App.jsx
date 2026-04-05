@@ -1,11 +1,11 @@
 import { useState } from 'react';
-import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
+import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import QuizPage from './pages/QuizPage';
 import InfoPage from './pages/InfoPage';
 import AdminPage from './pages/AdminPage';
 import Logo from './components/Logo';
-import { BookOpen, ClipboardCheck, User, Hash, Building2, Settings } from 'lucide-react';
+import { BookOpen, ClipboardCheck, User, Hash, Building2 } from 'lucide-react';
 
 const DEPARTMENTS = [
   'emergency', 'icu', 'operating', 'general', 'pediatrics', 
@@ -14,7 +14,7 @@ const DEPARTMENTS = [
 ];
 
 function Navbar() {
-  const { t, i18n } = useTranslation();
+  const { i18n } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
   const isLanding = location.pathname === '/';
@@ -38,20 +38,6 @@ function Navbar() {
         <Logo size={32} showText={true} />
       </div>
       <div style={{ display: 'flex', gap: '8px' }}>
-        <button
-          onClick={() => navigate('/admin')}
-          style={{
-            padding: '7px 12px',
-            background: 'var(--color-bg-light)',
-            border: '1px solid var(--color-border)',
-            borderRadius: 'var(--radius-md)',
-            cursor: 'pointer',
-            display: 'flex', alignItems: 'center'
-          }}
-          title="Admin Settings"
-        >
-          <Settings size={16} color="var(--color-text-muted)" />
-        </button>
         {isLanding && (
           <button
             onClick={toggleLang}
@@ -90,6 +76,7 @@ function LandingPage() {
 
   const go = (path) => {
     if (!validate()) return;
+    sessionStorage.setItem('cds_user_info', JSON.stringify(form));
     navigate(path, { state: { userInfo: form } });
   };
 
@@ -295,6 +282,7 @@ function App() {
           <Route path="/learn" element={<InfoPage />} />
           <Route path="/quiz" element={<QuizPage />} />
           <Route path="/admin" element={<AdminPage />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
     </div>
