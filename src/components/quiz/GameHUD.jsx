@@ -2,9 +2,10 @@ import React from 'react';
 import { Star } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
-export default function GameHUD({ score, currentIndex, totalQuestions, bestScore }) {
+export default function GameHUD({ score, currentIndex, totalQuestions, bestScore, correctCount, wrongCount }) {
   const { t } = useTranslation();
   const isNewRecord = score > 0 && score > bestScore;
+  const answered = correctCount + wrongCount;
 
   return (
     <div style={{
@@ -35,6 +36,32 @@ export default function GameHUD({ score, currentIndex, totalQuestions, bestScore
           </span>
         </span>
       </div>
+
+      {/* Correct / Wrong counters — only show once at least one question is answered */}
+      {answered > 0 && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <span style={{
+            display: 'flex', alignItems: 'center', gap: '4px',
+            fontSize: '0.82rem', fontWeight: '700',
+            color: 'var(--color-success)',
+            background: 'rgba(16,185,129,0.12)',
+            padding: '3px 10px',
+            borderRadius: 'var(--radius-full)',
+          }}>
+            ✓ {correctCount}
+          </span>
+          <span style={{
+            display: 'flex', alignItems: 'center', gap: '4px',
+            fontSize: '0.82rem', fontWeight: '700',
+            color: 'var(--color-danger)',
+            background: 'rgba(244,63,94,0.12)',
+            padding: '3px 10px',
+            borderRadius: 'var(--radius-full)',
+          }}>
+            ✗ {wrongCount}
+          </span>
+        </div>
+      )}
 
       {/* Live score */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>

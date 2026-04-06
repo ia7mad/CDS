@@ -14,6 +14,26 @@ import ResultsScreen from '../components/quiz/ResultsScreen';
 const MAX_TIME = 20;
 const BASE_POINTS = 100;
 const LS_KEY = 'cds_best_score';
+const QUIZ_STATE_KEY = 'cds_quiz_state';
+
+// Restore saved quiz state from sessionStorage (clears on tab close)
+function loadSavedQuizState(lang) {
+  try {
+    const raw = sessionStorage.getItem(QUIZ_STATE_KEY);
+    if (!raw) return null;
+    const state = JSON.parse(raw);
+    // Discard if language changed between sessions
+    if (state.lang && state.lang !== lang) return null;
+    // Adjust timeLeft for real time elapsed since last save
+    if (!state.showFeedback && state.timeLeft > 0 && state.savedAt) {
+      const elapsed = Math.floor((Date.now() - state.savedAt) / 1000);
+      state.timeLeft = Math.max(1, state.timeLeft - elapsed);
+    }
+    return state;
+  } catch {
+    return null;
+  }
+}
 
 function shuffle(arr) {
   const a = [...arr];
@@ -40,34 +60,52 @@ export default function QuizPage() {
 
   if (!userInfo) return <Navigate to="/" replace />;
 
-  const questionsList = useMemo(() => getQuestions(i18n.language), [i18n.language]);
   const wasteCategories = useMemo(() => getWasteCategories(i18n.language), [i18n.language]);
-  const questions = useMemo(() => shuffle(questionsList), [questionsList]);
   const bestScore = parseInt(localStorage.getItem(LS_KEY) || '0', 10);
 
-  // ── Core state ──
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [selectedBin, setSelectedBin] = useState(null);
-  const [showFeedback, setShowFeedback] = useState(false);
-  const [isFinished, setIsFinished] = useState(false);
+  // Load saved state once on mount — lazy initializer runs only on first render
+  const [init] = useState(() => {
+    const saved = loadSavedQuizState(i18n.language);
+    if (saved?.questions?.length) {
+      return { ...saved, isRestoring: true };
+    }
+    return {
+      questions: shuffle(getQuestions(i18n.language)),
+      currentIndex: 0,
+      selectedBin: null,
+      showFeedback: false,
+      score: 0,
+      questionResults: [],
+      timeLeft: MAX_TIME,
+      isRestoring: false,
+    };
+  });
+
+  // ── Core state (initialized from saved or fresh) ──
+  const [questions]                       = useState(init.questions);
+  const [currentIndex,   setCurrentIndex] = useState(init.currentIndex);
+  const [selectedBin,    setSelectedBin]  = useState(init.selectedBin);
+  const [showFeedback,   setShowFeedback] = useState(init.showFeedback);
+  const [isFinished,     setIsFinished]   = useState(false);
 
   // ── Score ──
-  const [score, setScore] = useState(0);
-  const [lastPoints, setLastPoints] = useState(0);
-  const [questionResults, setQuestionResults] = useState([]);
+  const [score,           setScore]           = useState(init.score);
+  const [lastPoints,      setLastPoints]       = useState(0);
+  const [questionResults, setQuestionResults]  = useState(init.questionResults);
 
   // ── Timer ──
-  const [timeLeft, setTimeLeft] = useState(MAX_TIME);
-  const [timerActive, setTimerActive] = useState(false); // starts only after instructions dismissed
+  const [timeLeft,    setTimeLeft]   = useState(init.timeLeft);
+  // If restoring mid-question (no feedback panel), start the timer right away
+  const [timerActive, setTimerActive] = useState(init.isRestoring && !init.showFeedback);
 
   // ── Animations ──
   const [animatingBinId, setAnimatingBinId] = useState(null);
-  const [animationType, setAnimationType] = useState(null);
+  const [animationType,  setAnimationType]  = useState(null);
   const [showScreenFlash, setShowScreenFlash] = useState(false);
-  const [floatingPoint, setFloatingPoint] = useState(null);
+  const [floatingPoint,  setFloatingPoint]  = useState(null);
 
-  // ── Instructions ──
-  const [showInstructions, setShowInstructions] = useState(true);
+  // ── Instructions — skip if restoring a saved session ──
+  const [showInstructions, setShowInstructions] = useState(!init.isRestoring);
 
   // ── Drag ──
   const [isTouchDevice, setIsTouchDevice] = useState(false);
@@ -77,6 +115,36 @@ export default function QuizPage() {
   useEffect(() => {
     setIsTouchDevice('ontouchstart' in window || navigator.maxTouchPoints > 0);
   }, []);
+
+  // Preload all question images so future questions load instantly
+  useEffect(() => {
+    questions.forEach(q => {
+      if (q.imageUrl) {
+        const img = new window.Image();
+        img.src = q.imageUrl;
+      }
+    });
+  }, [questions]);
+
+  // Persist quiz progress to sessionStorage after each answer or question change.
+  // On refresh, the tester resumes exactly where they left off.
+  useEffect(() => {
+    if (isFinished) {
+      sessionStorage.removeItem(QUIZ_STATE_KEY);
+      return;
+    }
+    sessionStorage.setItem(QUIZ_STATE_KEY, JSON.stringify({
+      questions,
+      currentIndex,
+      selectedBin,
+      showFeedback,
+      score,
+      questionResults,
+      timeLeft,
+      lang: i18n.language,
+      savedAt: Date.now(),
+    }));
+  }, [currentIndex, showFeedback, score, questionResults, isFinished]);
 
   // ── Timer countdown ──
   useEffect(() => {
@@ -179,7 +247,10 @@ export default function QuizPage() {
     }
   };
 
-  const restart = () => navigate('/');
+  const restart = () => {
+    sessionStorage.removeItem(QUIZ_STATE_KEY);
+    navigate('/');
+  };
 
   // ── Drag handlers ──
   const handleDragStart = () => setIsDragging(true);
@@ -320,6 +391,8 @@ export default function QuizPage() {
         currentIndex={currentIndex}
         totalQuestions={questions.length}
         bestScore={bestScore}
+        correctCount={questionResults.filter(r => r.correct).length}
+        wrongCount={questionResults.filter(r => !r.correct).length}
       />
 
       {/* Progress bar */}

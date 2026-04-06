@@ -36,7 +36,19 @@ export default function DraggableItem({
 
   const dragRef = useRef(null);
   const ghostRef = useRef(null);
+  const imgRef = useRef(null);
   const offsetRef = useRef({ x: 0, y: 0 });
+
+  // Track image load state for smooth transition
+  const [imgLoaded, setImgLoaded] = useState(false);
+  useEffect(() => {
+    // If image is already in browser cache, complete is true immediately
+    if (imgRef.current?.complete && imgRef.current.naturalWidth > 0) {
+      setImgLoaded(true);
+    } else {
+      setImgLoaded(false);
+    }
+  }, [question.imageUrl]);
   // Keep hover callback fresh without re-attaching the listener
   const hoverRef = useRef(onTouchBinHover);
   hoverRef.current = onTouchBinHover;
@@ -244,10 +256,20 @@ export default function DraggableItem({
         }}>
           {question.imageUrl ? (
             <img
+              ref={imgRef}
               src={question.imageUrl}
               alt={question.itemName}
               draggable={false}
-              style={{ width: '100%', height: '100%', objectFit: 'cover', pointerEvents: 'none', WebkitTouchCallout: 'none' }}
+              onLoad={() => setImgLoaded(true)}
+              style={{
+                width: '100%',
+                height: '100%',
+                objectFit: 'cover',
+                pointerEvents: 'none',
+                WebkitTouchCallout: 'none',
+                opacity: imgLoaded ? 1 : 0,
+                transition: 'opacity 0.2s ease',
+              }}
             />
           ) : (
             EMOJI_MAP[question.itemIcon] || '🗑️'
