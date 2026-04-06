@@ -1,7 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "Bash(ls /c/Users/alallah/OneDrive/Desktop/CDS/.env*)"
+      "Bash(ls /c/Users/alallah/OneDrive/Desktop/CDS/.env*)",
+      "Bash(curl -s -X POST https://api.supabase.com/v1/projects -H 'Authorization: Bearer sbp_0a37cedb30089f428df4f10f16087c9004bbe272' -H 'Content-Type: application/json' -d '{:*)"
     ]
   }
 }

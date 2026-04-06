@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { getAllRawQuestions, saveAdminQuestions, resetQuestions, resolveImageUrl } from '../data/questions';
-import { Plus, Edit2, Trash2, Save, RotateCcw, Download, Upload, X, Image, ArrowLeft, ArrowUp, ArrowDown, Copy, Lock, Settings, List, BarChart2, Trash } from 'lucide-react';
+import { Plus, Edit2, Trash2, Save, RotateCcw, Download, Upload, X, Image, ArrowLeft, ArrowUp, ArrowDown, Copy, Lock, LogOut, Settings, List, BarChart2, Trash } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import * as XLSX from 'xlsx';
+import { supabase } from '../lib/supabase';
+import { getResultsFromDb } from '../lib/db';
 
-const ADMIN_PIN_KEY   = 'cds_admin_pin';
-const HOSPITAL_KEY    = 'cds_hospital_name';
-const DEFAULT_PIN     = '1234';
+const HOSPITAL_KEY = 'cds_hospital_name';
 
 const BIN_COLORS = {
   general:        '#1E293B',
@@ -34,15 +34,25 @@ const EMPTY_QUESTION = {
   category: 'general', difficulty: 'beginner', correctBin: 'general', standard: '',
 };
 
-// ── PIN Gate ────────────────────────────────────────────────────────────────
-function PinGate({ onUnlock }) {
-  const [pin, setPin] = useState('');
-  const [error, setError] = useState(false);
+// ── Auth Gate (email + password via Supabase) ────────────────────────────────
+function AuthGate({ onUnlock }) {
+  const [email, setEmail]       = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading]   = useState(false);
+  const [error, setError]       = useState('');
 
-  const attempt = () => {
-    const stored = localStorage.getItem(ADMIN_PIN_KEY) || DEFAULT_PIN;
-    if (pin === stored) { onUnlock(); }
-    else { setError(true); setPin(''); setTimeout(() => setError(false), 2000); }
+  const attempt = async () => {
+    if (!email.trim() || !password) { setError('Email and password are required.'); return; }
+    if (!supabase) { setError('Backend not configured. Contact your administrator.'); return; }
+    setLoading(true);
+    setError('');
+    const { error: authError } = await supabase.auth.signInWithPassword({ email, password });
+    setLoading(false);
+    if (authError) {
+      setError('Invalid email or password.');
+    } else {
+      onUnlock();
+    }
   };
 
   return (
@@ -51,23 +61,33 @@ function PinGate({ onUnlock }) {
         <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: 'rgba(13,148,136,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
           <Lock size={28} color="var(--color-primary)" />
         </div>
-        <h2 style={{ fontSize: '1.25rem', fontWeight: '800', color: 'var(--color-text-main)', margin: '0 0 8px' }}>Admin Access Required</h2>
-        <p style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)', margin: '0 0 24px' }}>Enter the administrator PIN to continue.</p>
+        <h2 style={{ fontSize: '1.25rem', fontWeight: '800', color: 'var(--color-text-main)', margin: '0 0 8px' }}>Admin Login</h2>
+        <p style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)', margin: '0 0 24px' }}>Sign in with your administrator account.</p>
         <input
-          type="password"
-          inputMode="numeric"
-          placeholder="PIN"
-          value={pin}
-          onChange={e => setPin(e.target.value)}
+          type="email"
+          placeholder="Email address"
+          value={email}
+          onChange={e => setEmail(e.target.value)}
           onKeyDown={e => e.key === 'Enter' && attempt()}
           autoFocus
-          style={{ ...inputStyle, textAlign: 'center', letterSpacing: '0.3em', fontSize: '1.2rem', marginBottom: '12px', border: error ? '2px solid var(--color-danger)' : '1px solid var(--color-border)' }}
+          style={{ ...inputStyle, textAlign: 'left', marginBottom: '10px' }}
         />
-        {error && <p style={{ fontSize: '0.8rem', color: 'var(--color-danger)', marginBottom: '8px' }}>Incorrect PIN. Please try again.</p>}
-        <button onClick={attempt} style={{ ...btnStyle('var(--color-primary)', 'white'), width: '100%', justifyContent: 'center', padding: '12px' }}>
-          <Lock size={15} /> Unlock
+        <input
+          type="password"
+          placeholder="Password"
+          value={password}
+          onChange={e => setPassword(e.target.value)}
+          onKeyDown={e => e.key === 'Enter' && attempt()}
+          style={{ ...inputStyle, marginBottom: '12px', border: error ? '2px solid var(--color-danger)' : '1px solid var(--color-border)' }}
+        />
+        {error && <p style={{ fontSize: '0.8rem', color: 'var(--color-danger)', marginBottom: '8px' }}>{error}</p>}
+        <button
+          onClick={attempt}
+          disabled={loading}
+          style={{ ...btnStyle('var(--color-primary)', 'white'), width: '100%', justifyContent: 'center', padding: '12px', opacity: loading ? 0.6 : 1 }}
+        >
+          <Lock size={15} /> {loading ? 'Signing in…' : 'Sign In'}
         </button>
-        <p style={{ fontSize: '0.72rem', color: 'var(--color-text-muted)', marginTop: '14px' }}>Default PIN: {DEFAULT_PIN}</p>
       </div>
     </div>
   );
@@ -143,28 +163,12 @@ function ImagePicker({ value, onChange }) {
 // ── Settings Tab ────────────────────────────────────────────────────────────
 function SettingsTab() {
   const [hospitalName, setHospitalName] = useState(localStorage.getItem(HOSPITAL_KEY) || '');
-  const [currentPin, setCurrentPin] = useState('');
-  const [newPin, setNewPin] = useState('');
-  const [confirmPin, setConfirmPin] = useState('');
   const [settingsSaved, setSettingsSaved] = useState(false);
-  const [pinMsg, setPinMsg] = useState('');
-  const [pinOk, setPinOk] = useState(false);
 
   const saveSettings = () => {
     localStorage.setItem(HOSPITAL_KEY, hospitalName.trim());
     setSettingsSaved(true);
     setTimeout(() => setSettingsSaved(false), 2000);
-  };
-
-  const savePIN = () => {
-    const stored = localStorage.getItem(ADMIN_PIN_KEY) || DEFAULT_PIN;
-    if (currentPin !== stored) { setPinMsg('Incorrect current PIN.'); setPinOk(false); return; }
-    if (newPin.length < 4) { setPinMsg('PIN must be at least 4 digits.'); setPinOk(false); return; }
-    if (newPin !== confirmPin) { setPinMsg('PINs do not match.'); setPinOk(false); return; }
-    localStorage.setItem(ADMIN_PIN_KEY, newPin);
-    setCurrentPin(''); setNewPin(''); setConfirmPin('');
-    setPinMsg('PIN updated successfully.'); setPinOk(true);
-    setTimeout(() => setPinMsg(''), 3000);
   };
 
   return (
@@ -177,35 +181,35 @@ function SettingsTab() {
           <Save size={15} /> {settingsSaved ? 'Saved ✓' : 'Save Settings'}
         </button>
       </Section>
-
-      <Section title="Change Admin PIN">
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          <Field label="Current PIN">
-            <input type="password" inputMode="numeric" value={currentPin} onChange={e => setCurrentPin(e.target.value)} style={inputStyle} placeholder="Current PIN" />
-          </Field>
-          <Field label="New PIN (min 4 digits)">
-            <input type="password" inputMode="numeric" value={newPin} onChange={e => setNewPin(e.target.value)} style={inputStyle} placeholder="New PIN" />
-          </Field>
-          <Field label="Confirm New PIN">
-            <input type="password" inputMode="numeric" value={confirmPin} onChange={e => setConfirmPin(e.target.value)} style={inputStyle} placeholder="Confirm PIN" onKeyDown={e => e.key === 'Enter' && savePIN()} />
-          </Field>
-          {pinMsg && <p style={{ fontSize: '0.82rem', color: pinOk ? 'var(--color-success)' : 'var(--color-danger)', margin: 0 }}>{pinMsg}</p>}
-          <button onClick={savePIN} style={btnStyle('var(--color-primary)', 'white')}>
-            <Lock size={15} /> Save New PIN
-          </button>
-        </div>
-      </Section>
     </div>
   );
 }
 
 // ── Results Tab ─────────────────────────────────────────────────────────────
-function ResultsTab() {
+function ResultsTab({ isAuthenticated }) {
   const [results, setResults] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [source, setSource]   = useState('local');
 
   useEffect(() => {
-    setResults(JSON.parse(localStorage.getItem('cds_results') || '[]'));
-  }, []);
+    if (isAuthenticated && supabase) {
+      setLoading(true);
+      getResultsFromDb()
+        .then(rows => {
+          if (rows.length > 0) {
+            setResults(rows);
+            setSource('supabase');
+          } else {
+            setResults(JSON.parse(localStorage.getItem('cds_results') || '[]'));
+            setSource('local');
+          }
+        })
+        .finally(() => setLoading(false));
+    } else {
+      setResults(JSON.parse(localStorage.getItem('cds_results') || '[]'));
+      setSource('local');
+    }
+  }, [isAuthenticated]);
 
   const exportExcel = () => {
     if (!results.length) return;
@@ -236,7 +240,7 @@ function ResultsTab() {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '10px' }}>
         <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--color-text-muted)' }}>
-          {results.length} assessment record{results.length !== 1 ? 's' : ''} stored
+          {loading ? 'Loading…' : `${results.length} record${results.length !== 1 ? 's' : ''} · ${source === 'supabase' ? '🟢 Live from database' : '📱 Local cache'}`}
         </p>
         <div style={{ display: 'flex', gap: '8px' }}>
           <button onClick={exportExcel} disabled={!results.length} style={{ ...btnStyle('var(--color-primary)', 'white'), opacity: results.length ? 1 : 0.4 }}>
@@ -294,16 +298,39 @@ function ResultsTab() {
 // ── Main AdminPage ──────────────────────────────────────────────────────────
 export default function AdminPage() {
   const navigate = useNavigate();
-  const [unlocked, setUnlocked] = useState(false);
-  const [tab, setTab] = useState('questions'); // 'questions' | 'results' | 'settings'
-  const [questions, setQuestions] = useState([]);
-  const [editingId, setEditingId] = useState(null);
-  const [formData, setFormData] = useState(null);
-  const [saved, setSaved] = useState(false);
+  const [unlocked, setUnlocked]           = useState(false);
+  const [checkingSession, setCheckingSession] = useState(true);
+  const [tab, setTab]                     = useState('questions');
+  const [questions, setQuestions]         = useState([]);
+  const [editingId, setEditingId]         = useState(null);
+  const [formData, setFormData]           = useState(null);
+  const [saved, setSaved]                 = useState(false);
+
+  // Check for an existing Supabase session on mount (auto-login if token is still valid)
+  useEffect(() => {
+    if (!supabase) { setCheckingSession(false); return; }
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) setUnlocked(true);
+      setCheckingSession(false);
+    });
+  }, []);
 
   useEffect(() => { if (unlocked) setQuestions(getAllRawQuestions()); }, [unlocked]);
 
-  if (!unlocked) return <PinGate onUnlock={() => setUnlocked(true)} />;
+  const handleSignOut = async () => {
+    if (supabase) await supabase.auth.signOut();
+    setUnlocked(false);
+  };
+
+  if (checkingSession) {
+    return (
+      <div style={{ minHeight: '60vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <p style={{ color: 'var(--color-text-muted)', fontSize: '0.9rem' }}>Checking session…</p>
+      </div>
+    );
+  }
+
+  if (!unlocked) return <AuthGate onUnlock={() => setUnlocked(true)} />;
 
   // ── Helpers ──
   const set = (key, val) => setFormData(f => ({ ...f, [key]: val }));
@@ -470,7 +497,10 @@ export default function AdminPage() {
             {localStorage.getItem(HOSPITAL_KEY) || 'HWDT'} · {questions.length} questions in bank
           </p>
         </div>
-        <button onClick={() => navigate('/')} style={btnStyle('var(--color-bg-light)', 'var(--color-text-main)')}><ArrowLeft size={16} /> Back</button>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <button onClick={handleSignOut} style={btnStyle('#fee2e2', 'var(--color-danger)')}><LogOut size={16} /> Sign Out</button>
+          <button onClick={() => navigate('/')} style={btnStyle('var(--color-bg-light)', 'var(--color-text-main)')}><ArrowLeft size={16} /> Back</button>
+        </div>
       </div>
 
       {/* Tabs */}
@@ -548,7 +578,7 @@ export default function AdminPage() {
         </>
       )}
 
-      {tab === 'results'  && <ResultsTab />}
+      {tab === 'results'  && <ResultsTab isAuthenticated={unlocked} />}
       {tab === 'settings' && <SettingsTab />}
     </div>
   );

@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { syncPendingResults } from './lib/db';
 import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import QuizPage from './pages/QuizPage';
@@ -282,6 +283,9 @@ function LandingPage() {
 }
 
 function App() {
+  // Silently retry any quiz results that failed to sync while offline
+  useEffect(() => { syncPendingResults(); }, []);
+
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       <Navbar />

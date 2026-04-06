@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { saveResultToDb, addToPendingQueue } from '../../lib/db';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { CheckCircle2, XCircle, RotateCcw, Award, Trophy, ChevronDown, ChevronUp, Star, Clock, BookOpen, CreditCard } from 'lucide-react';
@@ -48,9 +49,8 @@ export default function ResultsScreen({ score, questionResults, totalQuestions, 
       setCertId(id);
     }
 
-    // Save result to localStorage
-    const results = JSON.parse(localStorage.getItem('cds_results') || '[]');
-    results.unshift({
+    // Build the result record once
+    const resultRecord = {
       id: Date.now(),
       certId: id,
       name: userInfo.name || 'Unknown',
@@ -62,8 +62,17 @@ export default function ResultsScreen({ score, questionResults, totalQuestions, 
       correctCount,
       totalQuestions,
       date: new Date().toISOString(),
-    });
+    };
+
+    // 1. Save to localStorage first — always works, even offline
+    const results = JSON.parse(localStorage.getItem('cds_results') || '[]');
+    results.unshift(resultRecord);
     localStorage.setItem('cds_results', JSON.stringify(results.slice(0, 500)));
+
+    // 2. Best-effort Supabase write — fire and forget, never blocks the UI
+    saveResultToDb(resultRecord).then(ok => {
+      if (!ok) addToPendingQueue(resultRecord);
+    });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const issueDate = new Date();
