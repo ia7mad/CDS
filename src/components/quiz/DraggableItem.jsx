@@ -183,8 +183,8 @@ export default function DraggableItem({
       style={{
         borderRadius:            'var(--radius-lg)',
         boxShadow:               isGrabbing ? '0 10px 25px rgba(0,0,0,0.1)' : 'var(--shadow-md)',
-        padding:                 '20px 24px',
-        marginBottom:            '20px',
+        padding:                 showFeedback ? '12px 16px' : '20px 24px',
+        marginBottom:            showFeedback ? '12px' : '20px',
         cursor:                  showFeedback ? 'default' : 'grab',
         userSelect:              'none',
         WebkitUserSelect:        'none',
@@ -197,48 +197,50 @@ export default function DraggableItem({
       }}
     >
       {/* Top row */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
-        <span style={{
-          fontSize:        '0.72rem',
-          fontWeight:      '700',
-          color:           difficultyColor,
-          textTransform:   'uppercase',
-          letterSpacing:   '0.08em',
-          background:      `${difficultyColor}18`,
-          padding:         '3px 10px',
-          borderRadius:    'var(--radius-full)',
-        }}>
-          {question.difficulty}
-        </span>
+      {!showFeedback && (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
+          <span style={{
+            fontSize:        '0.72rem',
+            fontWeight:      '700',
+            color:           difficultyColor,
+            textTransform:   'uppercase',
+            letterSpacing:   '0.08em',
+            background:      `${difficultyColor}18`,
+            padding:         '3px 10px',
+            borderRadius:    'var(--radius-full)',
+          }}>
+            {question.difficulty}
+          </span>
 
-        {!showFeedback && (
           <span style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.78rem', color: 'var(--color-text-muted)' }}>
             {isTouchDevice
               ? <><Hand size={13} /> {t('orTapBin')}</>
               : <><GripVertical size={14} /> {t('dragToSort')}</>
             }
           </span>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Scenario */}
-      <p style={{
-        color:         'var(--color-text-muted)',
-        fontSize:      '0.9rem',
-        lineHeight:    1.65,
-        marginBottom:  '14px',
-        paddingBottom: '14px',
-        borderBottom:  '1px solid var(--color-border)',
-      }}>
-        {question.scenario}
-      </p>
+      {!showFeedback && (
+        <p style={{
+          color:         'var(--color-text-muted)',
+          fontSize:      '0.9rem',
+          lineHeight:    1.65,
+          marginBottom:  '14px',
+          paddingBottom: '14px',
+          borderBottom:  '1px solid var(--color-border)',
+        }}>
+          {question.scenario}
+        </p>
+      )}
 
       {/* Item visual */}
       <div style={{
         display:       'flex',
         alignItems:    'center',
-        gap:           '20px',
-        padding:       '14px 18px',
+        gap:           showFeedback ? '14px' : '20px',
+        padding:       showFeedback ? '10px 14px' : '14px 18px',
         background:    'rgba(255, 255, 255, 0.45)',
         borderRadius:  'var(--radius-md)',
         border:        '1px solid rgba(255, 255, 255, 0.5)',

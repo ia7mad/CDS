@@ -87,7 +87,7 @@ export default function BinDropZone({
         flexDirection: 'column',
         alignItems: 'center',
         gap: window.innerWidth < 500 ? '4px' : '6px',
-        padding: window.innerWidth < 500 ? '14px 6px' : '16px 12px',
+        padding: window.innerWidth < 500 ? (showFeedback ? '8px 4px' : '14px 6px') : '16px 12px',
         background: showFeedback ? 'var(--color-bg-white)' : undefined,
         borderRadius: 'var(--radius-lg)',
         border: `2px solid ${borderColor}`,
@@ -103,7 +103,7 @@ export default function BinDropZone({
     >
       {/* Realistic Bin Image */}
       <div style={{
-        height: window.innerWidth < 500 ? '64px' : '80px',
+        height: window.innerWidth < 500 ? (showFeedback ? '44px' : '64px') : '80px',
         width: '100%',
         display: 'flex',
         alignItems: 'center',
@@ -140,10 +140,10 @@ export default function BinDropZone({
       </div>
 
       <div style={{ textAlign: 'center' }}>
-        <p style={{ fontWeight: '800', color: 'var(--color-text-main)', fontSize: window.innerWidth < 500 ? '0.75rem' : '0.82rem', marginBottom: '1px', lineHeight: 1.2 }}>
+        <p style={{ fontWeight: '800', color: 'var(--color-text-main)', fontSize: window.innerWidth < 500 ? (showFeedback ? '0.7rem' : '0.75rem') : '0.82rem', marginBottom: '1px', lineHeight: 1.2 }}>
           {bin.name}
         </p>
-        {window.innerWidth >= 500 && (
+        {window.innerWidth >= 500 && !showFeedback && (
           <p style={{ 
             fontSize: '0.68rem', 
             color: 'var(--color-text-muted)', 
