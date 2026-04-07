@@ -292,41 +292,39 @@ function LandingPage() {
   );
 }
 
-function App() {
-  const [cloudSynced, setCloudSynced] = useState(false);
+function preloadImageUrls(urls) {
+  urls.forEach(url => {
+    if (!url) return;
+    const img = new window.Image();
+    img.src = resolveImageUrl(url);
+  });
+}
 
-  // Silently retry any quiz results that failed to sync while offline
-  // AND dynamically fetch the hospital's specific question bank from the cloud
-  useEffect(() => { 
-    syncPendingResults(); 
-    async function initCloudBank() {
+function App() {
+  useEffect(() => {
+    // 1. Preload bin images immediately — these appear on every quiz question
+    preloadImageUrls([
+      'items/bin_general.png',
+      'items/bin_infectious.png',
+      'items/bin_sharps.png',
+      'items/bin_pharmaceutical.png',
+    ]);
+
+    // 2. Preload question item images from local bank immediately (no network wait)
+    preloadImageUrls(getAllRawQuestions().map(q => q.imageUrl));
+
+    // 3. Retry offline results + sync cloud question bank in the background
+    syncPendingResults();
+    async function syncCloudBank() {
       const cloudBank = await getHospitalQuestionsFromDb(HOSPITAL_ID);
       if (cloudBank) {
         saveAdminQuestions(cloudBank);
+        // Preload any images that differ from the local bank
+        preloadImageUrls(cloudBank.map(q => q.imageUrl));
       }
-      
-      const activeBank = cloudBank || getAllRawQuestions();
-      // Pre-decode massive base64 or network images into browser memory quietly in the background
-      // so the actual quiz has zero lag or popping when they click Start
-      activeBank.forEach(q => {
-         if (q.imageUrl) {
-           const img = new window.Image();
-           img.src = resolveImageUrl(q.imageUrl);
-         }
-      });
-      
-      setCloudSynced(true);
     }
-    initCloudBank();
+    syncCloudBank();
   }, []);
-
-  if (!cloudSynced) {
-    return (
-      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--color-bg-light)' }}>
-        <p style={{ color: 'var(--color-primary)', fontWeight: '600', fontSize: '0.9rem', animation: 'pulse 1.5s infinite' }}>Establishing Secure Connection…</p>
-      </div>
-    );
-  }
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
