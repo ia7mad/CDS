@@ -45,7 +45,8 @@ export default function ResultsScreen({ score, questionResults, totalQuestions, 
     if (passed) {
       const counter = parseInt(localStorage.getItem('cds_cert_counter') || '0', 10) + 1;
       localStorage.setItem('cds_cert_counter', String(counter));
-      id = `HWDT-${new Date().getFullYear()}-${String(counter).padStart(5, '0')}`;
+      const r_suffix = Math.random().toString(36).substring(2, 6).toUpperCase();
+      id = `HWDT-${new Date().getFullYear()}-${String(counter).padStart(4, '0')}-${r_suffix}`;
       setCertId(id);
     }
 
