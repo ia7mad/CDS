@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { syncPendingResults, getHospitalQuestionsFromDb } from './lib/db';
+import { syncPendingResults, getHospitalQuestionsFromDb, getHospitalConfigFromDb } from './lib/db';
 import { saveAdminQuestions, getAllRawQuestions, resolveImageUrl } from './data/questions';
 import { HOSPITAL_ID } from './lib/supabase';
 import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
@@ -324,6 +324,13 @@ function App() {
       }
     }
     syncCloudBank();
+
+    // Load hospital display name from cloud config
+    getHospitalConfigFromDb(HOSPITAL_ID).then(cfg => {
+      if (cfg?.hospital_name) {
+        localStorage.setItem('cds_hospital_name', cfg.hospital_name);
+      }
+    });
   }, []);
 
   return (

@@ -134,6 +134,33 @@ export async function getHospitalQuestionsFromDb(hospitalId) {
   }
 }
 
+// Returns full config row: { questions_jsonb, hospital_name, admin_email }
+export async function getHospitalConfigFromDb(hospitalId) {
+  if (!supabase) return null;
+  try {
+    const { data, error } = await supabase
+      .from('hospital_configs')
+      .select('questions_jsonb, hospital_name, admin_email')
+      .eq('hospital_id', hospitalId)
+      .single();
+    if (error) return null;
+    return data || null;
+  } catch (e) {
+    return null;
+  }
+}
+
+// Returns all hospital rows (super admin use only)
+export async function getAllHospitalsFromDb() {
+  if (!supabase) return [];
+  const { data, error } = await supabase
+    .from('hospital_configs')
+    .select('hospital_id, hospital_name, admin_email, updated_at')
+    .order('hospital_id');
+  if (error) { console.error('Failed to list hospitals:', error.message); return []; }
+  return data || [];
+}
+
 export async function saveHospitalQuestionsToDb(hospitalId, questions) {
   if (!supabase) return false;
   try {
@@ -148,6 +175,26 @@ export async function saveHospitalQuestionsToDb(hospitalId, questions) {
     return true;
   } catch (e) {
     console.error('Failed to sync questions to cloud:', e);
+    return false;
+  }
+}
+
+// Save or update hospital metadata (name, admin email) — does NOT touch questions
+export async function saveHospitalMetaToDb(hospitalId, { hospitalName, adminEmail }) {
+  if (!supabase) return false;
+  try {
+    const { error } = await supabase
+      .from('hospital_configs')
+      .upsert({
+        hospital_id:    hospitalId,
+        hospital_name:  hospitalName  || null,
+        admin_email:    adminEmail    || null,
+        updated_at:     new Date().toISOString(),
+      }, { onConflict: 'hospital_id' });
+    if (error) throw error;
+    return true;
+  } catch (e) {
+    console.error('Failed to save hospital meta:', e);
     return false;
   }
 }

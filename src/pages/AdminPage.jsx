@@ -4,7 +4,7 @@ import { Plus, Edit2, Trash2, Save, RotateCcw, Download, Upload, X, Image, Arrow
 import { useNavigate } from 'react-router-dom';
 import * as XLSX from 'xlsx';
 import { supabase } from '../lib/supabase';
-import { getResultsFromDb, getQuestionStatsFromDb, saveHospitalQuestionsToDb, getHospitalQuestionsFromDb, getEvaluationsFromDb } from '../lib/db';
+import { getResultsFromDb, getQuestionStatsFromDb, saveHospitalQuestionsToDb, getHospitalQuestionsFromDb, getEvaluationsFromDb, getAllHospitalsFromDb, saveHospitalMetaToDb } from '../lib/db';
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, LineElement, PointElement, Tooltip, Legend, Filler } from 'chart.js';
 import { Bar, Line } from 'react-chartjs-2';
 ChartJS.register(CategoryScale, LinearScale, BarElement, LineElement, PointElement, Tooltip, Legend, Filler);
@@ -222,48 +222,294 @@ function SettingsTab() {
 
 // ── Super Admin: Hospitals Tab ──────────────────────────────────────────────
 function HospitalsTab() {
-  const [newCode, setNewCode] = useState('');
-  const [generatedLink, setGeneratedLink] = useState('');
-  
-  const generate = () => {
-    if (!newCode.trim()) return;
-    const cleanId = newCode.trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
-    const link = `https://ia7mad.github.io/CDS/?hospital=${cleanId}`;
-    setGeneratedLink(link);
+  const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+
+  // Service role key — kept only in memory, never persisted
+  const [serviceKey, setServiceKey]     = useState('');
+  const [keyConfirmed, setKeyConfirmed] = useState(false);
+  const [keyError, setKeyError]         = useState('');
+
+  // Create hospital form
+  const [code, setCode]         = useState('');
+  const [name, setName]         = useState('');
+  const [email, setEmail]       = useState('');
+  const [password, setPassword] = useState('');
+  const [creating, setCreating] = useState(false);
+  const [createMsg, setCreateMsg] = useState(null); // { ok, text }
+  const [createdLink, setCreatedLink] = useState('');
+
+  // Existing hospitals list
+  const [hospitals, setHospitals]       = useState([]);
+  const [hospitalsLoading, setHospitalsLoading] = useState(false);
+
+  // Change-password form (keyed by hospital_id)
+  const [changingPwFor, setChangingPwFor] = useState(null);
+  const [newPw, setNewPw]               = useState('');
+  const [changingPw, setChangingPw]     = useState(false);
+  const [pwMsg, setPwMsg]               = useState(null);
+
+  // ── Service-role key helpers ──
+  const adminHeaders = { 'apikey': serviceKey, 'Authorization': `Bearer ${serviceKey}`, 'Content-Type': 'application/json' };
+
+  const confirmKey = async () => {
+    setKeyError('');
+    try {
+      const res = await fetch(`${SUPABASE_URL}/auth/v1/admin/users?page=1&per_page=1`, { headers: adminHeaders });
+      if (res.ok) {
+        setKeyConfirmed(true);
+        loadHospitals();
+      } else {
+        setKeyError('Invalid key — got ' + res.status + '. Use your project Service Role key from Supabase → Settings → API.');
+      }
+    } catch {
+      setKeyError('Network error verifying key.');
+    }
   };
 
-  const copyLink = () => {
-    navigator.clipboard.writeText(`Welcome to the Healthcare Waste Disposal Portal.\nYour dedicated hospital portal link is: ${generatedLink}`);
-    alert('Link copied to clipboard!');
+  const loadHospitals = async () => {
+    setHospitalsLoading(true);
+    const rows = await getAllHospitalsFromDb();
+    setHospitals(rows);
+    setHospitalsLoading(false);
   };
 
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', maxWidth: '640px' }}>
-      <Section title="Onboard New Hospital">
-        <p style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)', marginBottom: '16px', lineHeight: 1.5 }}>
-          Create a unique access portal link for a new hospital. Ensure you also manually create their local admin email account (e.g. <code>admin@hospitalcode.com</code>) in the Supabase Dashboard Authentication tab so they can access their isolated results tracking.
+  // ── Create hospital ──
+  const handleCreate = async () => {
+    const cleanCode = code.trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+    if (!cleanCode || !name.trim() || !email.trim() || password.length < 8) {
+      setCreateMsg({ ok: false, text: 'All fields required. Password must be ≥ 8 characters.' });
+      return;
+    }
+    setCreating(true);
+    setCreateMsg(null);
+
+    try {
+      // 1. Create Supabase auth user
+      const createRes = await fetch(`${SUPABASE_URL}/auth/v1/admin/users`, {
+        method: 'POST',
+        headers: adminHeaders,
+        body: JSON.stringify({
+          email: email.trim(),
+          password,
+          email_confirm: true,
+          app_metadata: { hospital_id: cleanCode },
+        }),
+      });
+      const createData = await createRes.json();
+      if (!createRes.ok) throw new Error(createData.msg || createData.message || 'Failed to create user.');
+
+      // 2. Save hospital metadata (name + email) to hospital_configs
+      await saveHospitalMetaToDb(cleanCode, { hospitalName: name.trim(), adminEmail: email.trim() });
+
+      const link = `https://ia7mad.github.io/CDS/?hospital=${cleanCode}`;
+      setCreatedLink(link);
+      setCreateMsg({ ok: true, text: `Hospital "${name.trim()}" created. Admin: ${email.trim()}` });
+      setCode(''); setName(''); setEmail(''); setPassword('');
+      loadHospitals();
+    } catch (err) {
+      setCreateMsg({ ok: false, text: err.message });
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  // ── Change password ──
+  const handleChangePw = async (adminEmail) => {
+    if (newPw.length < 8) { setPwMsg({ ok: false, text: 'Password must be ≥ 8 characters.' }); return; }
+    setChangingPw(true);
+    setPwMsg(null);
+    try {
+      // Find user ID by email
+      const listRes = await fetch(`${SUPABASE_URL}/auth/v1/admin/users?page=1&per_page=1000`, { headers: adminHeaders });
+      const listData = await listRes.json();
+      const user = (listData.users || []).find(u => u.email?.toLowerCase() === adminEmail.toLowerCase());
+      if (!user) throw new Error(`No user found with email ${adminEmail}`);
+
+      // Update password
+      const updateRes = await fetch(`${SUPABASE_URL}/auth/v1/admin/users/${user.id}`, {
+        method: 'PUT',
+        headers: adminHeaders,
+        body: JSON.stringify({ password: newPw }),
+      });
+      if (!updateRes.ok) {
+        const d = await updateRes.json();
+        throw new Error(d.msg || 'Failed to update password.');
+      }
+      setPwMsg({ ok: true, text: 'Password updated successfully.' });
+      setNewPw('');
+      setChangingPwFor(null);
+    } catch (err) {
+      setPwMsg({ ok: false, text: err.message });
+    } finally {
+      setChangingPw(false);
+    }
+  };
+
+  const msgBox = (msg) => msg && (
+    <div style={{ marginTop: '12px', padding: '10px 14px', borderRadius: 'var(--radius-md)', fontSize: '0.84rem', fontWeight: '600',
+      background: msg.ok ? 'rgba(16,185,129,0.1)' : 'rgba(244,63,94,0.1)',
+      color: msg.ok ? 'var(--color-success)' : 'var(--color-danger)',
+      border: `1px solid ${msg.ok ? '#10B98140' : '#F43F5E40'}`,
+    }}>{msg.text}</div>
+  );
+
+  // ── Step 1: Enter service role key ──
+  if (!keyConfirmed) return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', maxWidth: '540px' }}>
+      <Section title="Authenticate with Service Role Key">
+        <p style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)', marginBottom: '16px', lineHeight: 1.6 }}>
+          To create or manage hospital admin accounts, enter your Supabase <strong>Service Role Key</strong>.<br />
+          Find it in: Supabase Dashboard → Project Settings → API → <em>service_role</em> key.<br />
+          This key is only held in memory — it is never saved to disk or localStorage.
         </p>
-        
-        <Field label="Hospital Short Code (e.g. KFHBH)">
-          <input 
-            value={newCode} 
-            onChange={e => setNewCode(e.target.value)} 
-            style={{ ...inputStyle, textTransform: 'uppercase' }} 
-            placeholder="MNGHA" 
+        <Field label="Service Role Key (starts with eyJ…)">
+          <input
+            type="password"
+            value={serviceKey}
+            onChange={e => setServiceKey(e.target.value)}
+            style={inputStyle}
+            placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9…"
           />
         </Field>
-        
-        <button onClick={generate} style={{ ...btnStyle('var(--color-primary)', 'white'), marginTop: '14px', width: 'fit-content' }}>
-          <Plus size={15} /> Generate Custom Link
+        {keyError && <p style={{ color: 'var(--color-danger)', fontSize: '0.82rem', marginTop: '8px' }}>{keyError}</p>}
+        <button
+          onClick={confirmKey}
+          disabled={serviceKey.length < 20}
+          style={{ ...btnStyle('var(--color-primary)', 'white'), marginTop: '14px', width: 'fit-content', opacity: serviceKey.length < 20 ? 0.5 : 1 }}
+        >
+          <Lock size={14} /> Verify & Continue
+        </button>
+      </Section>
+    </div>
+  );
+
+  // ── Main UI after key confirmed ──
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', maxWidth: '720px' }}>
+
+      {/* ── Create New Hospital ── */}
+      <Section title="Create New Hospital">
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+          <Field label="Hospital Short Code (e.g. KFHBH)">
+            <input
+              value={code}
+              onChange={e => setCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))}
+              style={{ ...inputStyle, textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: '700' }}
+              placeholder="MNGHA"
+              maxLength={12}
+            />
+          </Field>
+          <Field label="Hospital Display Name (shown in footer)">
+            <input
+              value={name}
+              onChange={e => setName(e.target.value)}
+              style={inputStyle}
+              placeholder="King Fahad Medical City"
+            />
+          </Field>
+          <Field label="Admin Email">
+            <input
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              style={inputStyle}
+              placeholder={code ? `admin@${code.toLowerCase()}.com` : 'admin@hospital.com'}
+              type="email"
+            />
+          </Field>
+          <Field label="Admin Password (min 8 chars)">
+            <input
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              style={inputStyle}
+              type="password"
+              placeholder="••••••••"
+            />
+          </Field>
+        </div>
+
+        <button
+          onClick={handleCreate}
+          disabled={creating}
+          style={{ ...btnStyle('var(--color-primary)', 'white'), marginTop: '16px', width: 'fit-content', opacity: creating ? 0.7 : 1 }}
+        >
+          <Plus size={15} /> {creating ? 'Creating…' : 'Create Hospital & Admin Account'}
         </button>
 
-        {generatedLink && (
-          <div style={{ marginTop: '20px', padding: '16px', background: 'rgba(13, 148, 136, 0.08)', borderRadius: 'var(--radius-md)', border: '1px solid rgba(13, 148, 136, 0.2)' }}>
-            <p style={{ fontSize: '0.8rem', fontWeight: '700', color: 'var(--color-primary)', marginBottom: '6px', textTransform: 'uppercase' }}>Portal Ready</p>
-            <p style={{ fontSize: '0.9rem', color: 'var(--color-text-main)', marginBottom: '12px', wordBreak: 'break-all', userSelect: 'all' }}>{generatedLink}</p>
-            <button onClick={copyLink} style={{ ...btnStyle('white', 'var(--color-primary)'), border: '1px solid var(--color-primary)' }}>
-              <Copy size={14} /> Copy Invite Message
+        {msgBox(createMsg)}
+
+        {createdLink && (
+          <div style={{ marginTop: '16px', padding: '16px', background: 'rgba(13,148,136,0.07)', borderRadius: 'var(--radius-md)', border: '1px solid rgba(13,148,136,0.2)' }}>
+            <p style={{ fontSize: '0.78rem', fontWeight: '700', color: 'var(--color-primary)', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Portal Link</p>
+            <p style={{ fontSize: '0.9rem', color: 'var(--color-text-main)', marginBottom: '12px', wordBreak: 'break-all', userSelect: 'all', fontFamily: 'monospace' }}>{createdLink}</p>
+            <button
+              onClick={() => { navigator.clipboard.writeText(`Welcome to the HWDT portal.\nHospital portal: ${createdLink}`); alert('Copied!'); }}
+              style={{ ...btnStyle('white', 'var(--color-primary)'), border: '1px solid var(--color-primary)' }}
+            >
+              <Copy size={14} /> Copy Invite
             </button>
+          </div>
+        )}
+      </Section>
+
+      {/* ── Existing Hospitals ── */}
+      <Section title={`Hospitals (${hospitals.length})`}>
+        {hospitalsLoading ? (
+          <p style={{ color: 'var(--color-text-muted)', fontSize: '0.85rem' }}>Loading…</p>
+        ) : hospitals.length === 0 ? (
+          <p style={{ color: 'var(--color-text-muted)', fontSize: '0.85rem' }}>No hospitals created yet.</p>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            {hospitals.map(h => {
+              const link = `https://ia7mad.github.io/CDS/?hospital=${h.hospital_id}`;
+              const isChanging = changingPwFor === h.hospital_id;
+              return (
+                <div key={h.hospital_id} style={{ border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', padding: '14px 18px', background: 'var(--color-bg-light)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '10px' }}>
+                    <div>
+                      <p style={{ margin: 0, fontWeight: '800', fontSize: '0.95rem', color: 'var(--color-primary)' }}>{h.hospital_id}</p>
+                      <p style={{ margin: '2px 0', fontSize: '0.88rem', color: 'var(--color-text-main)', fontWeight: '600' }}>{h.hospital_name || '(no name set)'}</p>
+                      <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--color-text-muted)' }}>{h.admin_email || '(no admin email)'}</p>
+                      <p style={{ margin: '4px 0 0', fontSize: '0.75rem', color: 'var(--color-text-muted)', fontFamily: 'monospace', wordBreak: 'break-all' }}>{link}</p>
+                    </div>
+                    <div style={{ display: 'flex', gap: '8px', flexShrink: 0 }}>
+                      <button
+                        onClick={() => { navigator.clipboard.writeText(link); alert('Link copied!'); }}
+                        style={btnStyle('var(--color-bg-white)', 'var(--color-text-muted)')}
+                      ><Copy size={13} /> Copy Link</button>
+                      <button
+                        onClick={() => { setChangingPwFor(isChanging ? null : h.hospital_id); setNewPw(''); setPwMsg(null); }}
+                        style={btnStyle(isChanging ? '#fee2e2' : 'var(--color-bg-white)', isChanging ? 'var(--color-danger)' : 'var(--color-text-main)')}
+                      ><Lock size={13} /> {isChanging ? 'Cancel' : 'Change Password'}</button>
+                    </div>
+                  </div>
+
+                  {isChanging && (
+                    <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid var(--color-border)', display: 'flex', gap: '10px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
+                      <div style={{ flex: 1, minWidth: '200px' }}>
+                        <label style={{ fontSize: '0.78rem', fontWeight: '600', color: 'var(--color-text-muted)', display: 'block', marginBottom: '4px' }}>
+                          New Password for {h.admin_email}
+                        </label>
+                        <input
+                          type="password"
+                          value={newPw}
+                          onChange={e => setNewPw(e.target.value)}
+                          placeholder="New password (min 8 chars)"
+                          style={{ ...inputStyle, margin: 0 }}
+                        />
+                      </div>
+                      <button
+                        onClick={() => handleChangePw(h.admin_email)}
+                        disabled={changingPw || newPw.length < 8}
+                        style={{ ...btnStyle('var(--color-primary)', 'white'), opacity: newPw.length < 8 ? 0.5 : 1 }}
+                      >
+                        {changingPw ? 'Saving…' : 'Save Password'}
+                      </button>
+                    </div>
+                  )}
+                  {isChanging && msgBox(pwMsg)}
+                </div>
+              );
+            })}
           </div>
         )}
       </Section>
