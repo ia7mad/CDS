@@ -43,12 +43,7 @@ export default function DraggableItem({
   // Track image load state for smooth transition
   const [imgLoaded, setImgLoaded] = useState(false);
   useEffect(() => {
-    // If image is already in browser cache, complete is true immediately
-    if (imgRef.current?.complete && imgRef.current.naturalWidth > 0) {
-      setImgLoaded(true);
-    } else {
-      setImgLoaded(false);
-    }
+    setImgLoaded(true); // Force instant reveal since App.jsx preloaded it
   }, [question.imageUrl]);
   // Keep hover callback fresh without re-attaching the listener
   const hoverRef = useRef(onTouchBinHover);
@@ -182,7 +177,7 @@ export default function DraggableItem({
       onTouchEnd={isTouchDevice && !showFeedback ? handleTouchEnd : undefined}
       onTouchCancel={isTouchDevice && !showFeedback ? handleTouchEnd : undefined}
       onContextMenu={e => e.preventDefault()}
-      className={`animate-fade-in ${showFeedback ? '' : 'glass-panel'}`}
+      className={showFeedback ? '' : 'glass-panel'}
       style={{
         borderRadius:            'var(--radius-lg)',
         boxShadow:               isGrabbing ? '0 10px 25px rgba(0,0,0,0.1)' : 'var(--shadow-md)',
@@ -277,8 +272,7 @@ export default function DraggableItem({
                 objectFit: 'cover',
                 pointerEvents: 'none',
                 WebkitTouchCallout: 'none',
-                opacity: imgLoaded ? 1 : 0,
-                transition: 'opacity 0.2s ease',
+                opacity: imgLoaded ? 1 : 1, // Instant
               }}
             />
           ) : (

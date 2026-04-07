@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { syncPendingResults, getHospitalQuestionsFromDb } from './lib/db';
-import { saveAdminQuestions } from './data/questions';
+import { saveAdminQuestions, getAllRawQuestions, resolveImageUrl } from './data/questions';
 import { HOSPITAL_ID } from './lib/supabase';
 import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -303,18 +303,18 @@ function App() {
       const cloudBank = await getHospitalQuestionsFromDb(HOSPITAL_ID);
       if (cloudBank) {
         saveAdminQuestions(cloudBank);
-        // Pre-decode massive base64 images into browser memory quietly in the background
-        // so the actual quiz has zero lag or popping when they click Start
-        cloudBank.forEach(q => {
-           if (q.imageUrl) {
-             const img = new window.Image();
-             // Simple fallback to handle base64 vs relative
-             img.src = q.imageUrl.startsWith('data:') || q.imageUrl.startsWith('http') 
-               ? q.imageUrl 
-               : import.meta.env.BASE_URL + q.imageUrl.replace(/^\//, '');
-           }
-        });
       }
+      
+      const activeBank = cloudBank || getAllRawQuestions();
+      // Pre-decode massive base64 or network images into browser memory quietly in the background
+      // so the actual quiz has zero lag or popping when they click Start
+      activeBank.forEach(q => {
+         if (q.imageUrl) {
+           const img = new window.Image();
+           img.src = resolveImageUrl(q.imageUrl);
+         }
+      });
+      
       setCloudSynced(true);
     }
     initCloudBank();
