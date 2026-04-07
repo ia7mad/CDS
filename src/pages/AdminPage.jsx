@@ -4,7 +4,7 @@ import { Plus, Edit2, Trash2, Save, RotateCcw, Download, Upload, X, Image, Arrow
 import { useNavigate } from 'react-router-dom';
 import * as XLSX from 'xlsx';
 import { supabase } from '../lib/supabase';
-import { getResultsFromDb, saveHospitalQuestionsToDb, getHospitalQuestionsFromDb } from '../lib/db';
+import { getResultsFromDb, getQuestionStatsFromDb, saveHospitalQuestionsToDb, getHospitalQuestionsFromDb } from '../lib/db';
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, LineElement, PointElement, Tooltip, Legend, Filler } from 'chart.js';
 import { Bar, Line } from 'react-chartjs-2';
 ChartJS.register(CategoryScale, LinearScale, BarElement, LineElement, PointElement, Tooltip, Legend, Filler);
@@ -272,7 +272,7 @@ function HospitalsTab() {
 }
 
 // ── Analytics Tab ────────────────────────────────────────────────────────────
-function AnalyticsTab({ results, loading }) {
+function AnalyticsTab({ results, loading, questionStats = [] }) {
   if (loading) return <div style={{ padding: '60px', textAlign: 'center', color: 'var(--color-text-muted)' }}>Loading analytics…</div>;
   if (!results.length) return <div style={{ padding: '60px', textAlign: 'center', color: 'var(--color-text-muted)', background: 'var(--color-bg-white)', borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-sm)' }}>No data yet — analytics will appear once assessments are completed.</div>;
 
@@ -432,6 +432,54 @@ function AnalyticsTab({ results, loading }) {
           </tbody>
         </table>
       </div>
+
+      {/* Question performance table */}
+      {questionStats.length > 0 && (
+        <div style={{ background: 'var(--color-bg-white)', borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-sm)', overflow: 'auto' }}>
+          <div style={{ padding: '16px 24px 8px', borderBottom: '1px solid var(--color-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <p style={{ margin: 0, fontWeight: '700', fontSize: '0.88rem', color: 'var(--color-text-main)' }}>Question Performance — Hardest First</p>
+            <span style={{ fontSize: '0.78rem', color: 'var(--color-text-muted)' }}>{questionStats.length} questions tracked</span>
+          </div>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.84rem' }}>
+            <thead>
+              <tr style={{ background: 'var(--color-bg-light)' }}>
+                {['Question', 'Category', 'Attempts', 'Correct', 'Wrong', 'Pass Rate', 'Avg Time'].map(h => (
+                  <th key={h} style={thStyle}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {questionStats.map(q => (
+                <tr key={q.questionId} style={{ borderTop: '1px solid var(--color-border)' }}
+                  onMouseEnter={e => e.currentTarget.style.background = 'var(--color-bg-light)'}
+                  onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                  <td style={{ ...tdStyle, maxWidth: '240px' }}>
+                    <p style={{ margin: 0, fontWeight: '600', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{q.itemName}</p>
+                    <p style={{ margin: 0, fontSize: '0.74rem', color: 'var(--color-text-muted)' }}>{q.questionId}</p>
+                  </td>
+                  <td style={tdStyle}>
+                    <span style={{ padding: '2px 9px', borderRadius: 'var(--radius-full)', fontSize: '0.75rem', fontWeight: '600', background: BIN_COLORS[q.category] + '18', color: BIN_COLORS[q.category] || 'var(--color-text-muted)', border: `1px solid ${BIN_COLORS[q.category] || '#ccc'}44` }}>
+                      {q.category}
+                    </span>
+                  </td>
+                  <td style={{ ...tdStyle, fontWeight: '600' }}>{q.attempts}</td>
+                  <td style={{ ...tdStyle, color: 'var(--color-success)', fontWeight: '600' }}>{q.correct}</td>
+                  <td style={{ ...tdStyle, color: q.wrong > 0 ? 'var(--color-danger)' : 'var(--color-text-muted)', fontWeight: q.wrong > 0 ? '600' : '400' }}>{q.wrong}</td>
+                  <td style={tdStyle}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <div style={{ flex: 1, height: '6px', borderRadius: '3px', background: 'var(--color-bg-light)', overflow: 'hidden', minWidth: '60px' }}>
+                        <div style={{ width: `${q.passRate}%`, height: '100%', background: q.passRate >= 70 ? 'var(--color-success)' : 'var(--color-danger)', borderRadius: '3px' }} />
+                      </div>
+                      <span style={{ fontWeight: '700', color: q.passRate >= 70 ? 'var(--color-success)' : 'var(--color-danger)', minWidth: '38px' }}>{q.passRate}%</span>
+                    </div>
+                  </td>
+                  <td style={{ ...tdStyle, color: 'var(--color-text-muted)' }}>{q.avgTime != null ? `${q.avgTime}s` : '—'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }
@@ -535,10 +583,11 @@ export default function AdminPage() {
   const [formData, setFormData]           = useState(null);
   const [saved, setSaved]                 = useState(false);
 
-  // ── Results state — shared between Results tab and Analytics tab ──
-  const [results, setResults]   = useState([]);
+  // ── Results + question stats — shared between Results tab and Analytics tab ──
+  const [results, setResults]               = useState([]);
   const [resultsLoading, setResultsLoading] = useState(false);
   const [resultsSource, setResultsSource]   = useState('local');
+  const [questionStats, setQuestionStats]   = useState([]);
 
   const handleAuthSuccess = (email) => {
     if (email.toLowerCase() === 'admin@ahmad.com') {
@@ -575,15 +624,17 @@ export default function AdminPage() {
         }
       });
 
-      // Load results (shared by Results tab + Analytics tab)
+      // Load results + question stats (shared by Results tab + Analytics tab)
       if (supabase) {
         setResultsLoading(true);
-        getResultsFromDb(adminHospitalId)
-          .then(rows => {
-            if (rows !== null) { setResults(rows); setResultsSource('supabase'); }
-            else { setResults(JSON.parse(localStorage.getItem('cds_results') || '[]')); setResultsSource('local'); }
-          })
-          .finally(() => setResultsLoading(false));
+        Promise.all([
+          getResultsFromDb(adminHospitalId),
+          getQuestionStatsFromDb(adminHospitalId),
+        ]).then(([rows, stats]) => {
+          if (rows !== null) { setResults(rows); setResultsSource('supabase'); }
+          else { setResults(JSON.parse(localStorage.getItem('cds_results') || '[]')); setResultsSource('local'); }
+          if (stats !== null) setQuestionStats(stats);
+        }).finally(() => setResultsLoading(false));
       } else {
         setResults(JSON.parse(localStorage.getItem('cds_results') || '[]'));
         setResultsSource('local');
@@ -891,7 +942,7 @@ export default function AdminPage() {
       )}
 
       {tab === 'results'   && <ResultsTab results={results} loading={resultsLoading} source={resultsSource} onClear={() => setResults([])} />}
-      {tab === 'analytics' && <AnalyticsTab results={results} loading={resultsLoading} />}
+      {tab === 'analytics' && <AnalyticsTab results={results} loading={resultsLoading} questionStats={questionStats} />}
       {tab === 'settings'  && <SettingsTab />}
       {tab === 'hospitals' && adminHospitalId === null && <HospitalsTab />}
     </div>

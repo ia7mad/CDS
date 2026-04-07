@@ -12,7 +12,7 @@ import {
 } from 'chart.js';
 import { Bar } from 'react-chartjs-2';
 import jsPDF from 'jspdf';
-import { toPng } from 'html-to-image';
+import html2canvas from 'html2canvas';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Tooltip);
 
@@ -112,23 +112,31 @@ export default function ResultsScreen({ score, questionResults, totalQuestions, 
       template.style.visibility = 'visible';
       template.style.opacity = '1';
 
-      // Small delay to ensure any pending repaints settle
-      await new Promise(resolve => setTimeout(resolve, 100));
+      // Ensure all fonts (Tajawal for Arabic) are fully loaded before capture
+      await document.fonts.ready;
+      await new Promise(resolve => setTimeout(resolve, 150));
 
       const CERT_W = 1122;
       const CERT_H = 793;
 
-      const imgData = await toPng(template, {
-        pixelRatio: 2,
+      const canvas = await html2canvas(template, {
+        scale: 2,
+        useCORS: true,
+        allowTaint: false,
+        logging: false,
         backgroundColor: '#ffffff',
         width: CERT_W,
         height: CERT_H,
-        style: { transform: 'scale(1)', transformOrigin: 'top left' },
-        filter: (el) => el.tagName !== 'CANVAS' || el.id === 'certificate-template',
+        windowWidth: CERT_W,
+        windowHeight: CERT_H,
+        ignoreElements: (el) =>
+          el.tagName === 'CANVAS' && el.id !== 'certificate-template',
       });
 
       template.style.visibility = 'hidden';
       template.style.opacity = '0';
+
+      const imgData = canvas.toDataURL('image/png');
       const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
       const pdfWidth = pdf.internal.pageSize.getWidth();
       const pdfHeight = pdf.internal.pageSize.getHeight();
@@ -159,30 +167,37 @@ export default function ResultsScreen({ score, questionResults, totalQuestions, 
       const CARD_H = 540;  // 54mm  × 10px/mm
 
       const captureOpts = {
-        pixelRatio: 2,
+        scale: 2,
+        useCORS: true,
+        allowTaint: false,
+        logging: false,
         backgroundColor: '#ffffff',
         width: CARD_W,
         height: CARD_H,
-        style: { transform: 'scale(1)', transformOrigin: 'top left' },
-        filter: (el) => el.tagName !== 'CANVAS',
+        windowWidth: CARD_W,
+        windowHeight: CARD_H,
+        ignoreElements: (el) => el.tagName === 'CANVAS',
       };
 
       // Show both for capture
       front.style.visibility = 'visible'; front.style.opacity = '1';
       back.style.visibility  = 'visible'; back.style.opacity  = '1';
-      await new Promise(r => setTimeout(r, 100));
 
-      const frontImgData = await toPng(front, captureOpts);
-      const backImgData  = await toPng(back,  captureOpts);
+      // Ensure Tajawal and all fonts are loaded before capture
+      await document.fonts.ready;
+      await new Promise(r => setTimeout(r, 150));
+
+      const frontCanvas = await html2canvas(front, captureOpts);
+      const backCanvas  = await html2canvas(back,  captureOpts);
 
       front.style.visibility = 'hidden'; front.style.opacity = '0';
       back.style.visibility  = 'hidden'; back.style.opacity  = '0';
 
       // Credit card size in mm: 85.6 × 54, landscape
       const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: [54, 85.6] });
-      pdf.addImage(frontImgData, 'PNG', 0, 0, 85.6, 54);
+      pdf.addImage(frontCanvas.toDataURL('image/png'), 'PNG', 0, 0, 85.6, 54);
       pdf.addPage([54, 85.6], 'landscape');
-      pdf.addImage(backImgData,  'PNG', 0, 0, 85.6, 54);
+      pdf.addImage(backCanvas.toDataURL('image/png'),  'PNG', 0, 0, 85.6, 54);
 
       pdf.save(`HWDT-WalletCard-${userInfo.name || 'Participant'}.pdf`);
     } catch (err) {
@@ -385,6 +400,7 @@ export default function ResultsScreen({ score, questionResults, totalQuestions, 
       {/* ── Hidden Certificate Template ── */}
       <div
         id="certificate-template"
+        dir={isRTL ? 'rtl' : 'ltr'}
         style={{
           visibility: 'hidden',
           opacity: '0',
@@ -395,7 +411,7 @@ export default function ResultsScreen({ score, questionResults, totalQuestions, 
           height: '793px',
           backgroundColor: '#ffffff',
           boxSizing: 'border-box',
-          fontFamily: 'Georgia, "Times New Roman", serif',
+          fontFamily: isRTL ? "'Tajawal', Arial, sans-serif" : "Georgia, 'Times New Roman', serif",
           direction: isRTL ? 'rtl' : 'ltr',
           pointerEvents: 'none',
         }}
@@ -407,11 +423,11 @@ export default function ResultsScreen({ score, questionResults, totalQuestions, 
             {/* Top: hospital name + program name */}
             <div style={{ textAlign: 'center', marginBottom: '18px' }}>
               {hospitalName && (
-                <p style={{ fontSize: '20px', fontWeight: '700', color: '#0d5c56', margin: '0 0 4px', fontFamily: 'Arial, sans-serif', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+                <p style={{ fontSize: '20px', fontWeight: '700', color: '#0d5c56', margin: '0 0 4px', letterSpacing: isRTL ? '0' : '0.08em', textTransform: 'uppercase' }}>
                   {hospitalName}
                 </p>
               )}
-              <p style={{ fontSize: '13px', color: '#64748b', margin: 0, fontFamily: 'Arial, sans-serif', letterSpacing: '0.05em' }}>
+              <p style={{ fontSize: '13px', color: '#64748b', margin: 0, letterSpacing: isRTL ? '0' : '0.05em' }}>
                 {isRTL ? 'إدارة مكافحة العدوى وسلامة البيئة' : 'Department of Infection Control & Environmental Safety'}
               </p>
             </div>
@@ -425,16 +441,16 @@ export default function ResultsScreen({ score, questionResults, totalQuestions, 
 
             {/* Certificate title */}
             <div style={{ textAlign: 'center', marginBottom: '16px' }}>
-              <h1 style={{ fontSize: '42px', color: '#0d5c56', margin: '0 0 6px', fontWeight: '700', letterSpacing: '0.02em' }}>
+              <h1 style={{ fontSize: '42px', color: '#0d5c56', margin: '0 0 6px', fontWeight: '700', letterSpacing: isRTL ? '0' : '0.02em' }}>
                 {t('certAchievement')}
               </h1>
-              <p style={{ fontSize: '16px', color: '#475569', margin: 0, fontFamily: 'Arial, sans-serif', letterSpacing: '0.04em' }}>
+              <p style={{ fontSize: '16px', color: '#475569', margin: 0, letterSpacing: isRTL ? '0' : '0.04em' }}>
                 {t('certProgram')}
               </p>
             </div>
 
             {/* This certifies that */}
-            <p style={{ textAlign: 'center', fontSize: '16px', color: '#64748b', margin: '0 0 8px', fontStyle: 'italic' }}>
+            <p style={{ textAlign: 'center', fontSize: '16px', color: '#64748b', margin: '0 0 8px', fontStyle: isRTL ? 'normal' : 'italic' }}>
               {t('certThisCertifies')}
             </p>
 
@@ -446,18 +462,18 @@ export default function ResultsScreen({ score, questionResults, totalQuestions, 
             </div>
 
             {/* Employee ID + Department */}
-            <p style={{ textAlign: 'center', fontSize: '14px', color: '#64748b', margin: '0 0 12px', fontFamily: 'Arial, sans-serif' }}>
-              {[userInfo.profileNumber, userInfo.department ? (isRTL ? userInfo.department : userInfo.department) : ''].filter(Boolean).join('  ·  ')}
+            <p style={{ textAlign: 'center', fontSize: '14px', color: '#64748b', margin: '0 0 12px' }}>
+              {[userInfo.profileNumber, userInfo.department || ''].filter(Boolean).join('  ·  ')}
             </p>
 
             {/* Body text */}
-            <p style={{ textAlign: 'center', fontSize: '14px', color: '#475569', lineHeight: '1.7', maxWidth: '700px', margin: '0 auto 20px', fontFamily: 'Arial, sans-serif' }}>
+            <p style={{ textAlign: 'center', fontSize: '14px', color: '#475569', lineHeight: '1.7', maxWidth: '700px', margin: '0 auto 20px' }}>
               {t('certCompletedPart1')} <strong>{t('certCompletedPart2')}</strong> {t('certCompletedPart3')}
             </p>
 
             {/* Score badge */}
             <div style={{ textAlign: 'center', marginBottom: '20px' }}>
-              <span style={{ display: 'inline-block', padding: '6px 24px', background: '#0d5c56', color: 'white', borderRadius: '20px', fontSize: '14px', fontFamily: 'Arial, sans-serif', fontWeight: '700', letterSpacing: '0.05em' }}>
+              <span style={{ display: 'inline-block', padding: '6px 24px', background: '#0d5c56', color: 'white', borderRadius: '20px', fontSize: '14px', fontWeight: '700', letterSpacing: isRTL ? '0' : '0.05em' }}>
                 {isRTL ? 'النتيجة' : 'Score'}: {percentage}% &nbsp;|&nbsp; {correctCount}/{totalQuestions} {isRTL ? 'صحيح' : 'Correct'}
               </span>
             </div>
@@ -467,20 +483,20 @@ export default function ResultsScreen({ score, questionResults, totalQuestions, 
               {[t('certProgCoord'), t('certDeptHead')].map(role => (
                 <div key={role} style={{ textAlign: 'center', minWidth: '200px' }}>
                   <div style={{ width: '180px', height: '1px', background: '#334155', margin: '0 auto 6px' }} />
-                  <p style={{ fontSize: '12px', color: '#475569', margin: 0, fontFamily: 'Arial, sans-serif', fontWeight: '600' }}>{role}</p>
+                  <p style={{ fontSize: '12px', color: '#475569', margin: 0, fontWeight: '600' }}>{role}</p>
                 </div>
               ))}
             </div>
 
             {/* Footer: cert ID, dates, reference */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: '1px solid #e2e8f0', paddingTop: '10px' }}>
-              <div style={{ fontSize: '11px', color: '#94a3b8', fontFamily: 'Arial, sans-serif' }}>
+              <div style={{ fontSize: '11px', color: '#94a3b8' }}>
                 <strong style={{ color: '#475569' }}>{t('certNumber')}:</strong> {certId}
               </div>
-              <div style={{ fontSize: '11px', color: '#94a3b8', textAlign: 'center', fontFamily: 'Arial, sans-serif' }}>
+              <div style={{ fontSize: '11px', color: '#94a3b8', textAlign: 'center' }}>
                 {isRTL ? 'مستند إلى إرشادات منظمة الصحة العالمية لإدارة النفايات الطبية (2014)' : 'Based on WHO Healthcare Waste Management Guidelines (2014)'}
               </div>
-              <div style={{ fontSize: '11px', color: '#94a3b8', textAlign: isRTL ? 'left' : 'right', fontFamily: 'Arial, sans-serif' }}>
+              <div style={{ fontSize: '11px', color: '#94a3b8', textAlign: isRTL ? 'left' : 'right' }}>
                 <span><strong style={{ color: '#475569' }}>{t('certIssuedBy').replace('By','').replace('عن','').trim()}:</strong> {formatDate(issueDate)}</span>
                 &nbsp;&nbsp;
                 <span><strong style={{ color: '#475569' }}>{t('certValidUntil')}:</strong> {formatDate(expiryDate)}</span>
@@ -495,11 +511,11 @@ export default function ResultsScreen({ score, questionResults, totalQuestions, 
       {/* 856×540px = 85.6mm×54mm at 10px/mm — browser renders Arabic/RTL perfectly */}
 
       {/* FRONT */}
-      <div id="card-front-template" style={{
+      <div id="card-front-template" dir={isRTL ? 'rtl' : 'ltr'} style={{
         visibility: 'hidden', opacity: '0',
         position: 'absolute', top: 0, left: '-9999px',
         width: '856px', height: '540px',
-        fontFamily: 'Arial, sans-serif',
+        fontFamily: isRTL ? "'Tajawal', Arial, sans-serif" : "Arial, sans-serif",
         direction: isRTL ? 'rtl' : 'ltr',
         backgroundColor: '#ffffff',
         overflow: 'hidden',
@@ -567,11 +583,11 @@ export default function ResultsScreen({ score, questionResults, totalQuestions, 
       </div>
 
       {/* BACK */}
-      <div id="card-back-template" style={{
+      <div id="card-back-template" dir={isRTL ? 'rtl' : 'ltr'} style={{
         visibility: 'hidden', opacity: '0',
         position: 'absolute', top: 0, left: '-9999px',
         width: '856px', height: '540px',
-        fontFamily: 'Arial, sans-serif',
+        fontFamily: isRTL ? "'Tajawal', Arial, sans-serif" : "Arial, sans-serif",
         direction: isRTL ? 'rtl' : 'ltr',
         backgroundColor: '#ffffff',
         overflow: 'hidden',

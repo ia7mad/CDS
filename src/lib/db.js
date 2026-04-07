@@ -69,6 +69,55 @@ export async function getResultsFromDb(adminHospitalId = null) {
   }));
 }
 
+// ── saveQuestionAttemptsToDb ──────────────────────────────────────────────────
+// Inserts one row per question answered in a quiz session.
+// questionResults shape: [{ id, itemName, category, correct, timeUsed }]
+export async function saveQuestionAttemptsToDb(questionResults) {
+  if (!supabase || !questionResults?.length) return;
+  const rows = questionResults.map(q => ({
+    hospital_id:  HOSPITAL_ID,
+    question_id:  q.id,
+    item_name:    q.itemName,
+    category:     q.category,
+    correct:      q.correct,
+    time_used:    q.timeUsed ?? null,
+    date:         new Date().toISOString(),
+  }));
+  const { error } = await supabase.from('question_attempts').insert(rows);
+  if (error) console.warn('Failed to save question attempts:', error.message);
+}
+
+// ── getQuestionStatsFromDb ────────────────────────────────────────────────────
+// Returns per-question aggregates: attempts, correct count, wrong count, avg time.
+export async function getQuestionStatsFromDb(adminHospitalId = null) {
+  if (!supabase) return null;
+  let query = supabase
+    .from('question_attempts')
+    .select('question_id, item_name, category, correct, time_used');
+  if (adminHospitalId) query = query.eq('hospital_id', adminHospitalId);
+  const { data, error } = await query;
+  if (error) { console.error('Failed to load question stats:', error.message); return null; }
+
+  // Aggregate client-side
+  const map = {};
+  (data || []).forEach(row => {
+    if (!map[row.question_id]) {
+      map[row.question_id] = { questionId: row.question_id, itemName: row.item_name, category: row.category, attempts: 0, correct: 0, timeSum: 0, timeCount: 0 };
+    }
+    const e = map[row.question_id];
+    e.attempts++;
+    if (row.correct) e.correct++;
+    if (row.time_used != null) { e.timeSum += row.time_used; e.timeCount++; }
+  });
+
+  return Object.values(map).map(e => ({
+    ...e,
+    wrong:       e.attempts - e.correct,
+    passRate:    e.attempts ? Math.round((e.correct / e.attempts) * 100) : 0,
+    avgTime:     e.timeCount ? Math.round((e.timeSum / e.timeCount) * 10) / 10 : null,
+  })).sort((a, b) => a.passRate - b.passRate); // hardest first
+}
+
 // ── Question Bank Cloud Sync ──────────────────────────────────────────────────
 export async function getHospitalQuestionsFromDb(hospitalId) {
   if (!supabase) return null;
