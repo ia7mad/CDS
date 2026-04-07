@@ -81,7 +81,10 @@ function LandingPage() {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const isRTL = i18n.language === 'ar';
-  const [form, setForm] = useState({ name: '', profileNumber: '', department: '' });
+  const [form, setForm] = useState(() => {
+    const saved = sessionStorage.getItem('cds_user_info');
+    return saved ? JSON.parse(saved) : { name: '', profileNumber: '', department: '' };
+  });
   const [errors, setErrors] = useState({});
 
   const validate = () => {
