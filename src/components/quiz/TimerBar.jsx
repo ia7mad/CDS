@@ -25,10 +25,12 @@ export default function TimerBar({ timeLeft, maxTime = 10 }) {
       </div>
       <div style={{
         width: '100%',
-        height: '10px',
-        background: 'var(--color-border)',
+        height: '14px',
+        background: 'rgba(255, 255, 255, 0.6)',
+        backdropFilter: 'blur(4px)',
         borderRadius: 'var(--radius-full)',
         overflow: 'hidden',
+        border: '1px solid rgba(255,255,255,0.4)'
       }}>
         <div
           className={isUrgent ? 'timer-urgent' : ''}
@@ -38,6 +40,7 @@ export default function TimerBar({ timeLeft, maxTime = 10 }) {
             background: barColor,
             borderRadius: 'var(--radius-full)',
             transition: 'width 0.9s linear, background 0.3s ease',
+            boxShadow: isUrgent ? `0 0 10px ${barColor}` : 'none'
           }}
         />
       </div>

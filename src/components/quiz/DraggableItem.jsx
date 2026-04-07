@@ -90,7 +90,10 @@ export default function DraggableItem({
   }, [question.id]);
 
   const handleTouchStart = (e) => {
-    if (showFeedback) return;
+    if (showFeedback || isGrabbing || ghostRef.current) return;
+    // Ignore multi-touch (e.g. accidentaly putting 2 fingers down)
+    if (e.touches.length > 1) return;
+    
     const touch = e.touches[0];
 
     // Ghost width/height constants used for centering
@@ -174,20 +177,21 @@ export default function DraggableItem({
       onDragEnd={!isTouchDevice && !showFeedback ? onDragEnd : undefined}
       onTouchStart={isTouchDevice && !showFeedback ? handleTouchStart : undefined}
       onTouchEnd={isTouchDevice && !showFeedback ? handleTouchEnd : undefined}
+      onTouchCancel={isTouchDevice && !showFeedback ? handleTouchEnd : undefined}
       onContextMenu={e => e.preventDefault()}
-      className="animate-fade-in"
+      className={`animate-fade-in ${showFeedback ? '' : 'glass-panel'}`}
       style={{
-        background:              'var(--color-bg-white)',
         borderRadius:            'var(--radius-lg)',
-        boxShadow:               isGrabbing ? 'var(--shadow-sm)' : 'var(--shadow-md)',
+        boxShadow:               isGrabbing ? '0 10px 25px rgba(0,0,0,0.1)' : 'var(--shadow-md)',
         padding:                 '20px 24px',
         marginBottom:            '20px',
         cursor:                  showFeedback ? 'default' : 'grab',
         userSelect:              'none',
         WebkitUserSelect:        'none',
         WebkitTouchCallout:      'none',
-        border:                  isGrabbing ? '2px solid var(--color-primary)' : '2px solid var(--color-border)',
+        border:                  isGrabbing ? '2px solid var(--color-primary)' : (showFeedback ? '2px solid var(--color-border)' : '1px solid rgba(255,255,255,0.6)'),
         touchAction:             'none',
+        background:              showFeedback ? 'var(--color-bg-white)' : undefined,
         opacity:                 isGrabbing ? 0.45 : 1,
         transition:              'opacity 0.15s, border-color 0.15s, box-shadow 0.15s',
       }}
@@ -235,9 +239,10 @@ export default function DraggableItem({
         alignItems:    'center',
         gap:           '20px',
         padding:       '14px 18px',
-        background:    'var(--color-bg-light)',
+        background:    'rgba(255, 255, 255, 0.45)',
         borderRadius:  'var(--radius-md)',
-        border:        '1px dashed var(--color-border)',
+        border:        '1px solid rgba(255, 255, 255, 0.5)',
+        boxShadow:     'inset 0 2px 6px rgba(255,255,255,0.8)',
       }}>
         <div style={{
           width:          '76px',

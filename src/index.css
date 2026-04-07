@@ -61,10 +61,13 @@
 
 body {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  background-color: var(--color-bg-light);
   color: var(--color-text-main);
   line-height: 1.5;
-  transition: background-color 0.3s ease, color 0.3s ease;
+  min-height: 100vh;
+  /* Dynamic Mesh Gradient - much softer slate/blue shift */
+  background: linear-gradient(135deg, #e0f2fe 0%, #ffffff 50%, #f1f5f9 100%);
+  background-attachment: fixed;
+  transition: color 0.3s ease;
 }
 
 /* RTL Support for Arabic */
@@ -113,6 +116,23 @@ button {
 
 .animate-pulse-slow {
   animation: pulse 3s infinite ease-in-out;
+}
+
+/* Glassmorphism Classes */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07);
+}
+
+.glass-panel-darker {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.05);
 }
 
 /* ── Gamification Animations ── */

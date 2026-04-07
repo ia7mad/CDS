@@ -8,14 +8,12 @@ export default function GameHUD({ score, currentIndex, totalQuestions, bestScore
   const answered = correctCount + wrongCount;
 
   return (
-    <div style={{
+    <div className="glass-panel" style={{
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'space-between',
-      background: 'var(--color-bg-white)',
       borderRadius: 'var(--radius-lg)',
-      padding: '12px 20px',
-      boxShadow: 'var(--shadow-sm)',
+      padding: '16px 22px',
       marginBottom: '16px',
       flexWrap: 'wrap',
       gap: '12px',

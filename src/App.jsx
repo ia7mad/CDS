@@ -27,8 +27,10 @@ function Navbar() {
   return (
     <nav style={{
       padding: '14px 24px',
-      backgroundColor: 'var(--color-bg-white)',
-      borderBottom: '1px solid var(--color-border)',
+      background: 'rgba(255, 255, 255, 0.4)',
+      backdropFilter: 'blur(12px)',
+      WebkitBackdropFilter: 'blur(12px)',
+      borderBottom: '1px solid rgba(255, 255, 255, 0.3)',
       display: 'flex',
       justifyContent: 'space-between',
       alignItems: 'center',
@@ -60,8 +62,10 @@ function Footer() {
 
   return (
     <footer style={{
-      borderTop: '1px solid var(--color-border)',
-      backgroundColor: 'var(--color-bg-white)',
+      borderTop: '1px solid rgba(255, 255, 255, 0.3)',
+      background: 'rgba(255, 255, 255, 0.4)',
+      backdropFilter: 'blur(12px)',
+      WebkitBackdropFilter: 'blur(12px)',
       padding: '16px 24px',
       textAlign: 'center',
     }}>
@@ -107,10 +111,11 @@ function LandingPage() {
     width: '100%',
     padding: '10px 14px',
     borderRadius: 'var(--radius-md)',
-    border: `1px solid ${hasError ? 'var(--color-danger)' : 'var(--color-border)'}`,
-    fontSize: '0.9rem',
+    border: `1px solid ${hasError ? 'var(--color-danger)' : 'rgba(255,255,255,0.6)'}`,
+    fontSize: '0.92rem',
     color: 'var(--color-text-main)',
-    background: 'var(--color-bg-white)',
+    background: 'rgba(255, 255, 255, 0.6)',
+    backdropFilter: 'blur(4px)',
     outline: 'none',
     fontFamily: 'inherit',
     boxSizing: 'border-box',
@@ -142,7 +147,7 @@ function LandingPage() {
         <div style={{ marginBottom: '16px' }}>
           <Logo size={80} />
         </div>
-        <h2 style={{ fontSize: '1.75rem', fontWeight: '800', color: 'var(--color-text-main)', marginBottom: '10px' }}>
+        <h2 style={{ fontSize: '2.2rem', fontWeight: '900', color: 'var(--color-primary-dark)', marginBottom: '8px', letterSpacing: '-0.02em' }}>
           {t('landingHeroTitle')}
         </h2>
         <p style={{ color: 'var(--color-text-muted)', fontSize: '0.92rem', lineHeight: 1.65, maxWidth: '440px', margin: '0 auto' }}>
@@ -151,13 +156,10 @@ function LandingPage() {
       </div>
 
       {/* Program intro highlights */}
-      <div style={{
-        background: 'var(--color-bg-white)',
+      <div className="glass-panel" style={{
         borderRadius: 'var(--radius-lg)',
-        boxShadow: 'var(--shadow-sm)',
-        padding: '18px 24px',
+        padding: '20px 26px',
         marginBottom: '20px',
-        border: '1px solid var(--color-border)',
       }}>
         <p style={{ fontSize: '0.78rem', fontWeight: '700', color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '12px' }}>
           {t('programTitle')}
@@ -181,12 +183,10 @@ function LandingPage() {
       </div>
 
       {/* User info form */}
-      <div style={{
-        background: 'var(--color-bg-white)',
+      <div className="glass-panel" style={{
         borderRadius: 'var(--radius-lg)',
-        boxShadow: 'var(--shadow-md)',
-        padding: '28px',
-        marginBottom: '20px',
+        padding: '30px 28px',
+        marginBottom: '24px',
       }}>
         <p style={{ fontWeight: '700', fontSize: '0.9rem', color: 'var(--color-text-main)', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
           <User size={16} color="var(--color-primary)" />
@@ -238,15 +238,16 @@ function LandingPage() {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
         <button
           onClick={() => go('/learn')}
+          className="glass-panel"
           style={{
             display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px',
-            padding: '22px 16px', background: 'var(--color-bg-white)',
-            border: '2px solid var(--color-border)', borderRadius: 'var(--radius-lg)',
-            cursor: 'pointer', textAlign: 'center', boxShadow: 'var(--shadow-sm)',
-            transition: 'border-color 0.15s, box-shadow 0.15s',
+            padding: '22px 16px',
+            borderRadius: 'var(--radius-lg)',
+            cursor: 'pointer', textAlign: 'center',
+            transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
           }}
-          onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--color-primary)'; e.currentTarget.style.boxShadow = 'var(--shadow-md)'; }}
-          onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--color-border)'; e.currentTarget.style.boxShadow = 'var(--shadow-sm)'; }}
+          onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.boxShadow = '0 12px 24px rgba(0,0,0,0.06)'; }}
+          onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 8px 32px 0 rgba(31, 38, 135, 0.07)'; }}
         >
           <div style={{ width: '52px', height: '52px', borderRadius: '50%', background: 'rgba(13,148,136,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <BookOpen size={24} color="var(--color-primary)" />
@@ -261,13 +262,14 @@ function LandingPage() {
           onClick={() => go('/quiz')}
           style={{
             display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px',
-            padding: '22px 16px', background: 'var(--color-primary)',
-            border: '2px solid var(--color-primary)', borderRadius: 'var(--radius-lg)',
-            cursor: 'pointer', textAlign: 'center', boxShadow: 'var(--shadow-md)',
-            transition: 'background 0.15s',
+            padding: '22px 16px', 
+            background: 'linear-gradient(135deg, var(--color-primary), var(--color-primary-dark))',
+            border: 'none', borderRadius: 'var(--radius-lg)',
+            cursor: 'pointer', textAlign: 'center', boxShadow: '0 8px 20px -4px rgba(13, 148, 136, 0.5)',
+            transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
           }}
-          onMouseEnter={e => e.currentTarget.style.background = 'var(--color-primary-dark)'}
-          onMouseLeave={e => e.currentTarget.style.background = 'var(--color-primary)'}
+          onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.boxShadow = '0 12px 24px -4px rgba(13, 148, 136, 0.6)'; }}
+          onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 8px 20px -4px rgba(13, 148, 136, 0.5)'; }}
         >
           <div style={{ width: '52px', height: '52px', borderRadius: '50%', background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <ClipboardCheck size={24} color="white" />

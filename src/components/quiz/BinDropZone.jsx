@@ -81,14 +81,14 @@ export default function BinDropZone({
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
       disabled={showFeedback}
-      className={`${animClass} ${isDragOver ? 'bin-drag-over' : ''}`}
+      className={`${animClass} ${isDragOver ? 'bin-drag-over' : ''} ${showFeedback ? '' : 'glass-panel'}`}
       style={{
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
         gap: window.innerWidth < 500 ? '3px' : '6px',
         padding: window.innerWidth < 500 ? '10px 4px' : '16px 12px',
-        background: 'var(--color-bg-white)',
+        background: showFeedback ? 'var(--color-bg-white)' : undefined,
         borderRadius: 'var(--radius-lg)',
         border: `2px solid ${borderColor}`,
         boxShadow,
@@ -144,8 +144,16 @@ export default function BinDropZone({
           {bin.name}
         </p>
         {window.innerWidth >= 500 && (
-          <p style={{ fontSize: '0.68rem', color: 'var(--color-text-muted)', lineHeight: 1.3 }}>
-            {bin.description.length > 35 ? bin.description.substring(0, 35) + '…' : bin.description}
+          <p style={{ 
+            fontSize: '0.68rem', 
+            color: 'var(--color-text-muted)', 
+            lineHeight: 1.3,
+            display: '-webkit-box',
+            WebkitLineClamp: 3,
+            WebkitBoxOrient: 'vertical',
+            overflow: 'hidden'
+          }}>
+            {bin.description}
           </p>
         )}
       </div>
