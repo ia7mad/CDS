@@ -10,6 +10,7 @@ import DraggableItem from '../components/quiz/DraggableItem';
 import BinDropZone from '../components/quiz/BinDropZone';
 import FeedbackPanel from '../components/quiz/FeedbackPanel';
 import ResultsScreen from '../components/quiz/ResultsScreen';
+import { sensoryEngine } from '../utils/sensory';
 
 const MAX_TIME = 20;
 const BASE_POINTS = 100;
@@ -189,9 +190,11 @@ export default function QuizPage() {
       setScore(s => s + points);
       setLastPoints(points);
       triggerAnimation(binId, 'correct', points);
+      sensoryEngine.playCorrect();
     } else {
       setLastPoints(0);
       triggerAnimation(binId, 'wrong', 0);
+      sensoryEngine.playWrong();
     }
 
     setQuestionResults(prev => [...prev, {
@@ -217,6 +220,7 @@ export default function QuizPage() {
     const q = questions[currentIndex];
     setLastPoints(0);
     triggerAnimation(q.correctBin, 'wrong', 0);
+    sensoryEngine.playWrong();
 
     setQuestionResults(prev => [...prev, {
       id: q.id,

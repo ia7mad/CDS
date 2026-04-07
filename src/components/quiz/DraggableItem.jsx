@@ -1,6 +1,7 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { GripVertical, Hand } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { sensoryEngine } from '../../utils/sensory';
 
 const EMOJI_MAP = {
   'syringe':      '💉',
@@ -139,6 +140,7 @@ export default function DraggableItem({
     document.body.appendChild(ghost);
     ghostRef.current = ghost;
     setIsGrabbing(true);
+    sensoryEngine.playPickup();
     onDragStart();
   };
 
@@ -166,6 +168,7 @@ export default function DraggableItem({
   const handleDragStart = (e) => {
     e.dataTransfer.setData('text/plain', question.id);
     e.dataTransfer.effectAllowed = 'move';
+    sensoryEngine.playPickup();
     onDragStart();
   };
 
