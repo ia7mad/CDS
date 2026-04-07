@@ -532,8 +532,8 @@ export default function ResultsScreen({ score, questionResults, totalQuestions, 
           </p>
           {/* Gold certified badge */}
           <div style={{ marginTop: '8px', background: '#c8a84b', borderRadius: '20px', padding: '6px 28px' }}>
-            <span style={{ color: 'white', fontWeight: '800', fontSize: '16px', letterSpacing: '0.08em' }}>
-              {isRTL ? '✓ معتمد' : 'CERTIFIED ✓'}
+            <span style={{ color: 'white', fontWeight: '800', fontSize: '16px', letterSpacing: isRTL ? '0' : '0.08em' }}>
+              {isRTL ? 'معتمد ✓' : 'CERTIFIED ✓'}
             </span>
           </div>
         </div>
@@ -596,7 +596,7 @@ export default function ResultsScreen({ score, questionResults, totalQuestions, 
       }}>
         {/* Teal header */}
         <div style={{ background: '#0d5c56', height: '90px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <p style={{ color: 'white', fontWeight: '800', fontSize: '22px', margin: 0, letterSpacing: '0.04em' }}>
+          <p style={{ color: 'white', fontWeight: '800', fontSize: '22px', margin: 0, letterSpacing: isRTL ? '0' : '0.04em' }}>
             {isRTL ? 'دليل فرز النفايات السريع' : 'Quick Waste Segregation Guide'}
           </p>
         </div>
