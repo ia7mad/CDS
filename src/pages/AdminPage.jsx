@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { getAllRawQuestions, saveAdminQuestions, resetQuestions, resolveImageUrl } from '../data/questions';
-import { Plus, Edit2, Trash2, Save, RotateCcw, Download, Upload, X, Image, ArrowLeft, ArrowUp, ArrowDown, Copy, Lock, LogOut, Settings, List, BarChart2, Trash } from 'lucide-react';
+import { Plus, Edit2, Trash2, Save, RotateCcw, Download, Upload, X, Image, ArrowLeft, ArrowUp, ArrowDown, Copy, Lock, LogOut, Settings, List, BarChart2, Trash, Star } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import * as XLSX from 'xlsx';
 import { supabase } from '../lib/supabase';
-import { getResultsFromDb, getQuestionStatsFromDb, saveHospitalQuestionsToDb, getHospitalQuestionsFromDb } from '../lib/db';
+import { getResultsFromDb, getQuestionStatsFromDb, saveHospitalQuestionsToDb, getHospitalQuestionsFromDb, getEvaluationsFromDb } from '../lib/db';
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, LineElement, PointElement, Tooltip, Legend, Filler } from 'chart.js';
 import { Bar, Line } from 'react-chartjs-2';
 ChartJS.register(CategoryScale, LinearScale, BarElement, LineElement, PointElement, Tooltip, Legend, Filler);
@@ -484,6 +484,213 @@ function AnalyticsTab({ results, loading, questionStats = [] }) {
   );
 }
 
+// ── Evaluations Tab ──────────────────────────────────────────────────────────
+function EvaluationsTab({ evaluations, loading, isSuperAdmin }) {
+  const [selectedHospital, setSelectedHospital] = useState('');
+
+  // All unique hospital IDs in the data (super admin only)
+  const hospitals = isSuperAdmin
+    ? [...new Set(evaluations.map(e => e.hospitalId).filter(Boolean))].sort()
+    : [];
+
+  // Filter data by selected hospital (super admin) or show all (hospital admin)
+  const data = isSuperAdmin && selectedHospital
+    ? evaluations.filter(e => e.hospitalId === selectedHospital)
+    : isSuperAdmin && !selectedHospital
+      ? [] // super admin must choose a hospital first
+      : evaluations;
+
+  const Stars = ({ value }) => (
+    <span style={{ color: '#F59E0B', fontSize: '1rem', letterSpacing: '1px' }}>
+      {'★'.repeat(Math.round(value || 0))}
+      <span style={{ color: '#CBD5E1' }}>{'★'.repeat(5 - Math.round(value || 0))}</span>
+    </span>
+  );
+
+  const avg = (arr, key) => arr.length
+    ? (arr.reduce((s, e) => s + (e[key] || 0), 0) / arr.length).toFixed(1)
+    : '—';
+
+  if (loading) return (
+    <div style={{ padding: '60px', textAlign: 'center', color: 'var(--color-text-muted)' }}>
+      Loading evaluations…
+    </div>
+  );
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+
+      {/* Super admin hospital selector */}
+      {isSuperAdmin && (
+        <div style={{ background: 'var(--color-bg-white)', borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-sm)', padding: '20px 24px' }}>
+          <p style={{ margin: '0 0 10px', fontWeight: '700', fontSize: '0.88rem', color: 'var(--color-text-main)' }}>
+            Select Hospital to View Evaluations
+          </p>
+          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+            {hospitals.length === 0 ? (
+              <p style={{ color: 'var(--color-text-muted)', fontSize: '0.85rem', margin: 0 }}>No evaluation data found across any hospital yet.</p>
+            ) : hospitals.map(h => (
+              <button key={h} onClick={() => setSelectedHospital(h)} style={{
+                padding: '8px 20px', borderRadius: 'var(--radius-md)', border: '2px solid',
+                borderColor: selectedHospital === h ? 'var(--color-primary)' : 'var(--color-border)',
+                background: selectedHospital === h ? 'var(--color-primary)' : 'white',
+                color: selectedHospital === h ? 'white' : 'var(--color-text-main)',
+                fontWeight: '700', fontSize: '0.88rem', cursor: 'pointer', transition: 'all 0.15s',
+              }}>{h}</button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Prompt super admin to pick hospital */}
+      {isSuperAdmin && !selectedHospital && (
+        <div style={{ padding: '48px', textAlign: 'center', color: 'var(--color-text-muted)', background: 'var(--color-bg-white)', borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-sm)' }}>
+          Select a hospital above to view its evaluations.
+        </div>
+      )}
+
+      {/* Show content once we have data to display */}
+      {(!isSuperAdmin || selectedHospital) && (
+        <>
+          {data.length === 0 ? (
+            <div style={{ padding: '60px', textAlign: 'center', color: 'var(--color-text-muted)', background: 'var(--color-bg-white)', borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-sm)' }}>
+              No evaluations recorded yet{selectedHospital ? ` for ${selectedHospital}` : ''}.
+            </div>
+          ) : (
+            <>
+              {/* KPI cards */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: '14px' }}>
+                {[
+                  { label: 'Total Evaluations', value: data.length, color: 'var(--color-primary)' },
+                  { label: 'Content Quality', value: avg(data, 'ratingContent'), sub: <Stars value={avg(data, 'ratingContent')} />, color: '#8B5CF6' },
+                  { label: 'Ease of Use', value: avg(data, 'ratingEase'), sub: <Stars value={avg(data, 'ratingEase')} />, color: '#F59E0B' },
+                  { label: 'Overall Experience', value: avg(data, 'ratingOverall'), sub: <Stars value={avg(data, 'ratingOverall')} />, color: 'var(--color-success)' },
+                ].map(({ label, value, sub, color }) => (
+                  <div key={label} style={{ background: 'var(--color-bg-white)', borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-sm)', padding: '18px 20px', borderTop: `3px solid ${color}` }}>
+                    <p style={{ margin: '0 0 4px', fontSize: '0.72rem', fontWeight: '600', color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{label}</p>
+                    <p style={{ margin: 0, fontSize: '1.9rem', fontWeight: '800', color }}>{value}</p>
+                    {sub && <div style={{ marginTop: '4px' }}>{sub}</div>}
+                  </div>
+                ))}
+              </div>
+
+              {/* Rating comparison bar chart */}
+              <div style={{ background: 'var(--color-bg-white)', borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-sm)', padding: '20px 24px' }}>
+                <p style={{ margin: '0 0 16px', fontWeight: '700', fontSize: '0.88rem', color: 'var(--color-text-main)' }}>
+                  Average Rating per Category
+                </p>
+                <div style={{ height: '180px' }}>
+                  <Bar
+                    data={{
+                      labels: ['Content Quality', 'Ease of Use', 'Overall Experience'],
+                      datasets: [{
+                        data: [
+                          parseFloat(avg(data, 'ratingContent')) || 0,
+                          parseFloat(avg(data, 'ratingEase'))    || 0,
+                          parseFloat(avg(data, 'ratingOverall')) || 0,
+                        ],
+                        backgroundColor: ['#8B5CF688', '#F59E0B88', '#10B98188'],
+                        borderColor:     ['#8B5CF6',   '#F59E0B',   '#10B981'],
+                        borderWidth: 2, borderRadius: 8,
+                      }],
+                    }}
+                    options={{
+                      responsive: true, maintainAspectRatio: false,
+                      plugins: { legend: { display: false } },
+                      scales: {
+                        x: { grid: { display: false } },
+                        y: { beginAtZero: true, max: 5, ticks: { stepSize: 1 }, grid: { color: 'rgba(0,0,0,0.05)' } },
+                      },
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* Department breakdown table */}
+              {(() => {
+                const deptMap = {};
+                data.forEach(e => {
+                  const d = e.department || 'other';
+                  if (!deptMap[d]) deptMap[d] = { count: 0, c: 0, ea: 0, o: 0 };
+                  deptMap[d].count++;
+                  deptMap[d].c  += e.ratingContent || 0;
+                  deptMap[d].ea += e.ratingEase    || 0;
+                  deptMap[d].o  += e.ratingOverall || 0;
+                });
+                const rows = Object.entries(deptMap)
+                  .map(([dept, v]) => ({ dept, count: v.count, content: (v.c / v.count).toFixed(1), ease: (v.ea / v.count).toFixed(1), overall: (v.o / v.count).toFixed(1) }))
+                  .sort((a, b) => b.count - a.count);
+
+                return (
+                  <div style={{ background: 'var(--color-bg-white)', borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-sm)', overflow: 'auto' }}>
+                    <div style={{ padding: '14px 24px 10px', borderBottom: '1px solid var(--color-border)' }}>
+                      <p style={{ margin: 0, fontWeight: '700', fontSize: '0.88rem' }}>Rating by Department</p>
+                    </div>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.84rem' }}>
+                      <thead>
+                        <tr style={{ background: 'var(--color-bg-light)' }}>
+                          {['Department', 'Responses', 'Content ★', 'Ease ★', 'Overall ★'].map(h => (
+                            <th key={h} style={thStyle}>{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {rows.map(r => (
+                          <tr key={r.dept} style={{ borderTop: '1px solid var(--color-border)' }}
+                            onMouseEnter={e => e.currentTarget.style.background = 'var(--color-bg-light)'}
+                            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                            <td style={{ ...tdStyle, fontWeight: '600', textTransform: 'capitalize' }}>{r.dept}</td>
+                            <td style={tdStyle}>{r.count}</td>
+                            <td style={{ ...tdStyle, color: '#8B5CF6', fontWeight: '700' }}>{r.content}</td>
+                            <td style={{ ...tdStyle, color: '#F59E0B', fontWeight: '700' }}>{r.ease}</td>
+                            <td style={{ ...tdStyle, color: 'var(--color-success)', fontWeight: '700' }}>{r.overall}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                );
+              })()}
+
+              {/* Individual responses table */}
+              <div style={{ background: 'var(--color-bg-white)', borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-sm)', overflow: 'auto' }}>
+                <div style={{ padding: '14px 24px 10px', borderBottom: '1px solid var(--color-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <p style={{ margin: 0, fontWeight: '700', fontSize: '0.88rem' }}>Individual Responses</p>
+                  <span style={{ fontSize: '0.78rem', color: 'var(--color-text-muted)' }}>{data.length} total</span>
+                </div>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.83rem' }}>
+                  <thead>
+                    <tr style={{ background: 'var(--color-bg-light)' }}>
+                      {['Name', 'Department', 'Content', 'Ease', 'Overall', 'Comment', 'Date'].map(h => (
+                        <th key={h} style={thStyle}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {data.map((e, i) => (
+                      <tr key={e.id || i} style={{ borderTop: '1px solid var(--color-border)' }}
+                        onMouseEnter={el => el.currentTarget.style.background = 'var(--color-bg-light)'}
+                        onMouseLeave={el => el.currentTarget.style.background = 'transparent'}>
+                        <td style={{ ...tdStyle, fontWeight: '600' }}>{e.name || '—'}</td>
+                        <td style={{ ...tdStyle, textTransform: 'capitalize' }}>{e.department || '—'}</td>
+                        <td style={{ ...tdStyle, color: '#8B5CF6', fontWeight: '700', textAlign: 'center' }}>{e.ratingContent || '—'}</td>
+                        <td style={{ ...tdStyle, color: '#F59E0B', fontWeight: '700', textAlign: 'center' }}>{e.ratingEase || '—'}</td>
+                        <td style={{ ...tdStyle, color: 'var(--color-success)', fontWeight: '700', textAlign: 'center' }}>{e.ratingOverall || '—'}</td>
+                        <td style={{ ...tdStyle, color: 'var(--color-text-muted)', maxWidth: '200px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{e.comment || '—'}</td>
+                        <td style={{ ...tdStyle, color: 'var(--color-text-muted)', whiteSpace: 'nowrap' }}>{new Date(e.date).toLocaleString('en-GB')}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
 // ── Results Tab ─────────────────────────────────────────────────────────────
 function ResultsTab({ results, loading, source, onClear }) {
 
@@ -589,6 +796,10 @@ export default function AdminPage() {
   const [resultsSource, setResultsSource]   = useState('local');
   const [questionStats, setQuestionStats]   = useState([]);
 
+  // ── Evaluations ──
+  const [evaluations, setEvaluations]           = useState([]);
+  const [evaluationsLoading, setEvaluationsLoading] = useState(false);
+
   const handleAuthSuccess = (email) => {
     if (email.toLowerCase() === 'admin@ahmad.com') {
       setAdminHospitalId(null); // Super admin bypass
@@ -635,9 +846,16 @@ export default function AdminPage() {
           else { setResults(JSON.parse(localStorage.getItem('cds_results') || '[]')); setResultsSource('local'); }
           if (stats !== null) setQuestionStats(stats);
         }).finally(() => setResultsLoading(false));
+
+        // Load evaluations — super admin fetches all, hospital admin fetches own
+        setEvaluationsLoading(true);
+        getEvaluationsFromDb(adminHospitalId).then(rows => {
+          setEvaluations(rows || []);
+        }).finally(() => setEvaluationsLoading(false));
       } else {
         setResults(JSON.parse(localStorage.getItem('cds_results') || '[]'));
         setResultsSource('local');
+        setEvaluations(JSON.parse(localStorage.getItem('cds_evaluations') || '[]'));
       }
     }
   }, [unlocked, adminHospitalId]);
@@ -869,6 +1087,7 @@ export default function AdminPage() {
         {tabBtn('questions', <List size={15} />, `Questions (${questions.length})`)}
         {tabBtn('results', <BarChart2 size={15} />, 'Results')}
         {tabBtn('analytics', <BarChart2 size={15} />, 'Analytics')}
+        {tabBtn('evaluations', <Star size={15} />, `Evaluations (${evaluations.length})`)}
         {tabBtn('settings', <Settings size={15} />, 'Settings')}
         {adminHospitalId === null && tabBtn('hospitals', <Plus size={15} />, 'Create Hospital')}
       </div>
@@ -941,10 +1160,11 @@ export default function AdminPage() {
         </>
       )}
 
-      {tab === 'results'   && <ResultsTab results={results} loading={resultsLoading} source={resultsSource} onClear={() => setResults([])} />}
-      {tab === 'analytics' && <AnalyticsTab results={results} loading={resultsLoading} questionStats={questionStats} />}
-      {tab === 'settings'  && <SettingsTab />}
-      {tab === 'hospitals' && adminHospitalId === null && <HospitalsTab />}
+      {tab === 'results'      && <ResultsTab results={results} loading={resultsLoading} source={resultsSource} onClear={() => setResults([])} />}
+      {tab === 'analytics'   && <AnalyticsTab results={results} loading={resultsLoading} questionStats={questionStats} />}
+      {tab === 'evaluations' && <EvaluationsTab evaluations={evaluations} loading={evaluationsLoading} isSuperAdmin={adminHospitalId === null} />}
+      {tab === 'settings'    && <SettingsTab />}
+      {tab === 'hospitals'   && adminHospitalId === null && <HospitalsTab />}
     </div>
   );
 }

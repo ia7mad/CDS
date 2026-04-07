@@ -152,6 +152,50 @@ export async function saveHospitalQuestionsToDb(hospitalId, questions) {
   }
 }
 
+// ── saveEvaluationToDb ────────────────────────────────────────────────────────
+export async function saveEvaluationToDb(entry) {
+  if (!supabase) return false;
+  try {
+    const { error } = await supabase.from('evaluations').insert({
+      hospital_id:      entry.hospitalId || HOSPITAL_ID,
+      name:             entry.name || null,
+      department:       entry.department || null,
+      rating_content:   entry.ratingContent,
+      rating_ease:      entry.ratingEase,
+      rating_overall:   entry.ratingOverall,
+      comment:          entry.comment || null,
+      date:             new Date().toISOString(),
+      lang:             entry.lang || 'en',
+    });
+    if (error) throw error;
+    return true;
+  } catch (err) {
+    console.warn('Failed to save evaluation:', err.message);
+    return false;
+  }
+}
+
+// ── getEvaluationsFromDb ──────────────────────────────────────────────────────
+export async function getEvaluationsFromDb(adminHospitalId = null) {
+  if (!supabase) return [];
+  let query = supabase.from('evaluations').select('*');
+  if (adminHospitalId) query = query.eq('hospital_id', adminHospitalId);
+  const { data, error } = await query.order('date', { ascending: false }).limit(1000);
+  if (error) { console.error('Failed to load evaluations:', error.message); return []; }
+  return (data || []).map(r => ({
+    id:            r.id,
+    hospitalId:    r.hospital_id,
+    name:          r.name,
+    department:    r.department,
+    ratingContent: r.rating_content,
+    ratingEase:    r.rating_ease,
+    ratingOverall: r.rating_overall,
+    comment:       r.comment,
+    date:          r.date,
+    lang:          r.lang,
+  }));
+}
+
 // ── addToPendingQueue ─────────────────────────────────────────────────────────
 // Saves a result to the local pending-sync queue so it can be retried later.
 export function addToPendingQueue(result) {

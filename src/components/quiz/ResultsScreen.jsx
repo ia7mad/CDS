@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { saveResultToDb, addToPendingQueue, saveQuestionAttemptsToDb } from '../../lib/db';
+import { saveResultToDb, addToPendingQueue, saveQuestionAttemptsToDb, saveEvaluationToDb } from '../../lib/db';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { CheckCircle2, XCircle, RotateCcw, Award, Trophy, ChevronDown, ChevronUp, Star, Clock, BookOpen, CreditCard } from 'lucide-react';
@@ -32,6 +32,18 @@ export default function ResultsScreen({ score, questionResults, totalQuestions, 
   const [generating, setGenerating] = useState(false);
   const [certId, setCertId] = useState('');
   const hospitalName = localStorage.getItem('cds_hospital_name') || '';
+
+  // Evaluation modal state
+  const [showEval, setShowEval]         = useState(false);
+  const [evalSubmitted, setEvalSubmitted] = useState(
+    () => sessionStorage.getItem('cds_eval_done') === '1'
+  );
+  const [evalRatings, setEvalRatings]   = useState({ r1: 0, r2: 0, r3: 0 });
+  const [evalHovers, setEvalHovers]     = useState({ r1: 0, r2: 0, r3: 0 });
+  const [evalComment, setEvalComment]   = useState('');
+  const [evalThanks, setEvalThanks]     = useState(false);
+  // 'cert' | 'card' | null — which download to run after eval closes
+  const [evalPendingAction, setEvalPendingAction] = useState(null);
 
   const correctCount = questionResults.filter(r => r.correct).length;
   const percentage = Math.round((correctCount / totalQuestions) * 100);
@@ -75,7 +87,50 @@ export default function ResultsScreen({ score, questionResults, totalQuestions, 
       if (!ok) addToPendingQueue(resultRecord);
     });
     saveQuestionAttemptsToDb(questionResults);
+
+    // Auto-show evaluation modal 2.5s after passing
+    if (passed) {
+      const timer = setTimeout(() => setShowEval(true), 2500);
+      return () => clearTimeout(timer);
+    }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const allRated = evalRatings.r1 > 0 && evalRatings.r2 > 0 && evalRatings.r3 > 0;
+
+  const handleEvalSubmit = () => {
+    if (!allRated) return;
+    // Save to localStorage
+    const entry = {
+      id: Date.now(),
+      name: userInfo.name || 'Unknown',
+      department: userInfo.department || '-',
+      ratingContent: evalRatings.r1,
+      ratingEase:    evalRatings.r2,
+      ratingOverall: evalRatings.r3,
+      comment:       evalComment,
+      date:          new Date().toISOString(),
+      lang:          i18n.language,
+    };
+    const stored = JSON.parse(localStorage.getItem('cds_evaluations') || '[]');
+    stored.unshift(entry);
+    localStorage.setItem('cds_evaluations', JSON.stringify(stored.slice(0, 1000)));
+    // Save to Supabase (fire-and-forget)
+    saveEvaluationToDb({ ...entry, hospitalId: localStorage.getItem('cds_hospital_id') || 'KFHBH' });
+
+    // Capture pending action before any state update
+    const pending = evalPendingAction;
+
+    setEvalThanks(true);
+    setTimeout(() => {
+      sessionStorage.setItem('cds_eval_done', '1');
+      setEvalSubmitted(true);
+      setShowEval(false);
+      setEvalPendingAction(null);
+      // Execute the deferred download directly (bypasses the guard since evalSubmitted is now true)
+      if (pending === 'cert') doCertDownload();
+      else if (pending === 'card') doCardDownload();
+    }, 1600);
+  };
 
   const issueDate = new Date();
   const expiryDate = new Date();
@@ -103,44 +158,27 @@ export default function ResultsScreen({ score, questionResults, totalQuestions, 
     },
   };
 
-  const handleDownloadCertificate = async () => {
+  // Core cert download — no eval guard
+  const doCertDownload = async () => {
     const template = document.getElementById('certificate-template');
     if (!template) return;
     setGenerating(true);
     try {
-      // Make visible for capture (stays in layout so dimensions are always computed)
       template.style.visibility = 'visible';
       template.style.opacity = '1';
-
-      // Ensure all fonts (Tajawal for Arabic) are fully loaded before capture
       await document.fonts.ready;
       await new Promise(resolve => setTimeout(resolve, 150));
-
-      const CERT_W = 1122;
-      const CERT_H = 793;
-
+      const CERT_W = 1122, CERT_H = 793;
       const canvas = await html2canvas(template, {
-        scale: 2,
-        useCORS: true,
-        allowTaint: false,
-        logging: false,
-        backgroundColor: '#ffffff',
-        width: CERT_W,
-        height: CERT_H,
-        windowWidth: CERT_W,
-        windowHeight: CERT_H,
-        ignoreElements: (el) =>
-          el.tagName === 'CANVAS' && el.id !== 'certificate-template',
+        scale: 2, useCORS: true, allowTaint: false, logging: false,
+        backgroundColor: '#ffffff', width: CERT_W, height: CERT_H,
+        windowWidth: CERT_W, windowHeight: CERT_H,
+        ignoreElements: (el) => el.tagName === 'CANVAS' && el.id !== 'certificate-template',
       });
-
       template.style.visibility = 'hidden';
       template.style.opacity = '0';
-
-      const imgData = canvas.toDataURL('image/png');
       const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = pdf.internal.pageSize.getHeight();
-      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+      pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, pdf.internal.pageSize.getWidth(), pdf.internal.pageSize.getHeight());
       pdf.save(`Certificate-${userInfo.name || 'Participant'}-${certId}.pdf`);
     } catch (err) {
       console.error('Cert generation failed:', err);
@@ -150,36 +188,35 @@ export default function ResultsScreen({ score, questionResults, totalQuestions, 
     }
   };
 
+  const handleDownloadCertificate = () => {
+    if (!evalSubmitted) { setEvalPendingAction('cert'); setShowEval(true); return; }
+    doCertDownload();
+  };
+
   const handleReviewMaterials = () => {
     navigate('/learn', { state: { userInfo } });
   };
 
   const [generatingCard, setGeneratingCard] = useState(false);
 
-  const handleDownloadCard = async () => {
+  // Core card download — no eval guard
+  const doCardDownload = async () => {
     setGeneratingCard(true);
     try {
       const front = document.getElementById('card-front-template');
       const back  = document.getElementById('card-back-template');
       if (!front || !back) return;
 
-      const CARD_W = 856;  // 85.6mm × 10px/mm
-      const CARD_H = 540;  // 54mm  × 10px/mm
+      const CARD_W = 856;
+      const CARD_H = 540;
 
       const captureOpts = {
-        scale: 2,
-        useCORS: true,
-        allowTaint: false,
-        logging: false,
-        backgroundColor: '#ffffff',
-        width: CARD_W,
-        height: CARD_H,
-        windowWidth: CARD_W,
-        windowHeight: CARD_H,
+        scale: 2, useCORS: true, allowTaint: false, logging: false,
+        backgroundColor: '#ffffff', width: CARD_W, height: CARD_H,
+        windowWidth: CARD_W, windowHeight: CARD_H,
         ignoreElements: (el) => el.tagName === 'CANVAS',
       };
 
-      // Show both for capture
       front.style.visibility = 'visible'; front.style.opacity = '1';
       back.style.visibility  = 'visible'; back.style.opacity  = '1';
 
@@ -206,6 +243,11 @@ export default function ResultsScreen({ score, questionResults, totalQuestions, 
     } finally {
       setGeneratingCard(false);
     }
+  };
+
+  const handleDownloadCard = () => {
+    if (!evalSubmitted) { setEvalPendingAction('card'); setShowEval(true); return; }
+    doCardDownload();
   };
 
   return (
@@ -626,6 +668,116 @@ export default function ResultsScreen({ score, questionResults, totalQuestions, 
           </span>
         </div>
       </div>
+
+      {/* ── Evaluation Modal ── */}
+      {showEval && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 9999,
+          background: 'rgba(15,23,42,0.55)', backdropFilter: 'blur(4px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          padding: '20px',
+        }}>
+          <div dir={isRTL ? 'rtl' : 'ltr'} style={{
+            background: 'white', borderRadius: '20px', padding: '36px 32px',
+            maxWidth: '420px', width: '100%', textAlign: 'center',
+            boxShadow: '0 20px 60px rgba(0,0,0,0.25)',
+            fontFamily: isRTL ? "'Tajawal', sans-serif" : 'inherit',
+            animation: 'fadeIn 0.25s ease',
+          }}>
+            {evalThanks ? (
+              <div style={{ padding: '20px 0' }}>
+                <div style={{ fontSize: '3rem', marginBottom: '12px' }}>🎉</div>
+                <p style={{ fontSize: '1.2rem', fontWeight: '700', color: 'var(--color-success)', margin: 0 }}>
+                  {t('evalThankYou')}
+                </p>
+              </div>
+            ) : (
+              <>
+                {/* Title */}
+                <div style={{ fontSize: '2rem', marginBottom: '8px' }}>⭐</div>
+                <h3 style={{ fontSize: '1.1rem', fontWeight: '800', color: 'var(--color-text-main)', marginBottom: '4px' }}>
+                  {t('evalTitle')}
+                </h3>
+                <p style={{ fontSize: '0.82rem', color: 'var(--color-text-muted)', marginBottom: '20px' }}>
+                  {t('evalSubtitle')}
+                </p>
+
+                {/* 3 rating categories */}
+                {[
+                  { key: 'r1', label: t('evalCat1') },
+                  { key: 'r2', label: t('evalCat2') },
+                  { key: 'r3', label: t('evalCat3') },
+                ].map(({ key, label }) => (
+                  <div key={key} style={{ marginBottom: '14px', textAlign: isRTL ? 'right' : 'left' }}>
+                    <p style={{ fontSize: '0.8rem', fontWeight: '700', color: 'var(--color-text-main)', margin: '0 0 5px' }}>
+                      {label}
+                    </p>
+                    <div style={{ display: 'flex', gap: '6px', justifyContent: isRTL ? 'flex-end' : 'flex-start' }}>
+                      {[1, 2, 3, 4, 5].map(star => (
+                        <button
+                          key={star}
+                          onClick={() => setEvalRatings(prev => ({ ...prev, [key]: star }))}
+                          onMouseEnter={() => setEvalHovers(prev => ({ ...prev, [key]: star }))}
+                          onMouseLeave={() => setEvalHovers(prev => ({ ...prev, [key]: 0 }))}
+                          style={{
+                            background: 'none', border: 'none', cursor: 'pointer', padding: '2px',
+                            fontSize: '1.7rem', lineHeight: 1,
+                            color: star <= (evalHovers[key] || evalRatings[key]) ? '#F59E0B' : '#CBD5E1',
+                            transform: star <= (evalHovers[key] || evalRatings[key]) ? 'scale(1.2)' : 'scale(1)',
+                            transition: 'color 0.12s, transform 0.12s',
+                          }}
+                        >★</button>
+                      ))}
+                      {(evalHovers[key] || evalRatings[key]) > 0 && (
+                        <span style={{ fontSize: '0.75rem', color: '#F59E0B', fontWeight: '600', alignSelf: 'center', marginInlineStart: '6px' }}>
+                          {t(`evalStar${evalHovers[key] || evalRatings[key]}`)}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+
+                {/* Comment textarea */}
+                <textarea
+                  value={evalComment}
+                  onChange={e => setEvalComment(e.target.value)}
+                  placeholder={t('evalCommentPlaceholder')}
+                  rows={2}
+                  style={{
+                    width: '100%', borderRadius: '10px', border: '1.5px solid var(--color-border)',
+                    padding: '9px 12px', fontSize: '0.83rem', resize: 'none', marginTop: '6px',
+                    fontFamily: isRTL ? "'Tajawal', sans-serif" : 'inherit',
+                    direction: isRTL ? 'rtl' : 'ltr',
+                    color: 'var(--color-text-main)', outline: 'none', boxSizing: 'border-box',
+                  }}
+                />
+
+                {/* Submit button (no skip) */}
+                <button
+                  onClick={handleEvalSubmit}
+                  disabled={!allRated}
+                  style={{
+                    width: '100%', marginTop: '14px', padding: '12px',
+                    border: 'none', borderRadius: '10px', fontWeight: '700', fontSize: '0.92rem',
+                    cursor: allRated ? 'pointer' : 'not-allowed',
+                    background: allRated ? 'var(--color-primary)' : 'var(--color-border)',
+                    color: allRated ? 'white' : 'var(--color-text-muted)',
+                    transition: 'background 0.2s',
+                    fontFamily: isRTL ? "'Tajawal', sans-serif" : 'inherit',
+                  }}
+                >
+                  {t('evalSubmit')}
+                </button>
+                {!allRated && (
+                  <p style={{ fontSize: '0.75rem', color: 'var(--color-danger)', marginTop: '6px' }}>
+                    {t('evalAllRequired')}
+                  </p>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      )}
 
     </div>
   );
