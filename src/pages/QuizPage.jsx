@@ -107,6 +107,14 @@ export default function QuizPage() {
 
   // ── Instructions — skip if restoring a saved session ──
   const [showInstructions, setShowInstructions] = useState(!init.isRestoring);
+  // Ready when the first question's image is decoded (or immediately if already cached / no image)
+  const firstUrl = init.questions[0]?.imageUrl;
+  const [firstImgReady, setFirstImgReady] = useState(() => {
+    if (!firstUrl) return true;
+    const probe = new window.Image();
+    probe.src = firstUrl;
+    return probe.complete; // true if already in browser cache
+  });
 
   // ── Drag ──
   const [isTouchDevice, setIsTouchDevice] = useState(false);
@@ -362,22 +370,35 @@ export default function QuizPage() {
               ))}
             </div>
 
+            {/* Hidden preload for the first question's image — loads while user reads instructions */}
+            {questions[0]?.imageUrl && (
+              <img
+                src={questions[0].imageUrl}
+                alt=""
+                onLoad={() => setFirstImgReady(true)}
+                onError={() => setFirstImgReady(true)}
+                style={{ display: 'none' }}
+              />
+            )}
+
             <button
-              onClick={() => { setShowInstructions(false); setTimerActive(true); }}
+              onClick={() => { if (!firstImgReady && questions[0]?.imageUrl) return; setShowInstructions(false); setTimerActive(true); }}
+              disabled={!firstImgReady && !!questions[0]?.imageUrl}
               style={{
                 width: '100%',
                 padding: '14px',
-                background: 'var(--color-primary)',
+                background: firstImgReady || !questions[0]?.imageUrl ? 'var(--color-primary)' : 'var(--color-border)',
                 color: 'white',
                 border: 'none',
                 borderRadius: 'var(--radius-md)',
                 fontWeight: '800',
                 fontSize: '1rem',
-                cursor: 'pointer',
-                boxShadow: '0 4px 14px rgba(13,148,136,0.35)',
+                cursor: firstImgReady || !questions[0]?.imageUrl ? 'pointer' : 'not-allowed',
+                boxShadow: firstImgReady || !questions[0]?.imageUrl ? '0 4px 14px rgba(13,148,136,0.35)' : 'none',
+                transition: 'background 0.3s, box-shadow 0.3s',
               }}
             >
-              {t('gotItStart')}
+              {firstImgReady || !questions[0]?.imageUrl ? t('gotItStart') : '…'}
             </button>
           </div>
         </div>
