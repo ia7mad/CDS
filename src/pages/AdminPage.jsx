@@ -5,6 +5,9 @@ import { useNavigate } from 'react-router-dom';
 import * as XLSX from 'xlsx';
 import { supabase } from '../lib/supabase';
 import { getResultsFromDb, saveHospitalQuestionsToDb, getHospitalQuestionsFromDb } from '../lib/db';
+import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, LineElement, PointElement, Tooltip, Legend, Filler } from 'chart.js';
+import { Bar, Line } from 'react-chartjs-2';
+ChartJS.register(CategoryScale, LinearScale, BarElement, LineElement, PointElement, Tooltip, Legend, Filler);
 
 const HOSPITAL_KEY = 'cds_hospital_name';
 
@@ -268,31 +271,173 @@ function HospitalsTab() {
   );
 }
 
-// ── Results Tab ─────────────────────────────────────────────────────────────
-function ResultsTab({ isAuthenticated, adminHospitalId }) {
-  const [results, setResults] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [source, setSource]   = useState('local');
+// ── Analytics Tab ────────────────────────────────────────────────────────────
+function AnalyticsTab({ results, loading }) {
+  if (loading) return <div style={{ padding: '60px', textAlign: 'center', color: 'var(--color-text-muted)' }}>Loading analytics…</div>;
+  if (!results.length) return <div style={{ padding: '60px', textAlign: 'center', color: 'var(--color-text-muted)', background: 'var(--color-bg-white)', borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-sm)' }}>No data yet — analytics will appear once assessments are completed.</div>;
 
-  useEffect(() => {
-    if (isAuthenticated && supabase) {
-      setLoading(true);
-      getResultsFromDb(adminHospitalId)
-        .then(rows => {
-          if (rows !== null) {
-            setResults(rows);
-            setSource('supabase');
-          } else {
-            setResults(JSON.parse(localStorage.getItem('cds_results') || '[]'));
-            setSource('local');
-          }
-        })
-        .finally(() => setLoading(false));
-    } else {
-      setResults(JSON.parse(localStorage.getItem('cds_results') || '[]'));
-      setSource('local');
-    }
-  }, [isAuthenticated]);
+  // ── Computed stats ──
+  const total      = results.length;
+  const passed     = results.filter(r => r.passed).length;
+  const passRate   = Math.round((passed / total) * 100);
+  const avgScore   = Math.round(results.reduce((s, r) => s + (r.percentage || 0), 0) / total);
+
+  const now        = new Date();
+  const thisMonth  = results.filter(r => { const d = new Date(r.date); return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear(); }).length;
+  const lastMonthD = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const lastMonth  = results.filter(r => { const d = new Date(r.date); return d.getMonth() === lastMonthD.getMonth() && d.getFullYear() === lastMonthD.getFullYear(); }).length;
+
+  // Department breakdown
+  const deptMap = {};
+  results.forEach(r => {
+    const d = r.department || 'other';
+    if (!deptMap[d]) deptMap[d] = { total: 0, passed: 0, scoreSum: 0 };
+    deptMap[d].total++;
+    if (r.passed) deptMap[d].passed++;
+    deptMap[d].scoreSum += (r.percentage || 0);
+  });
+  const depts = Object.entries(deptMap)
+    .map(([d, v]) => ({ dept: d, total: v.total, passed: v.passed, passRate: Math.round((v.passed / v.total) * 100), avg: Math.round(v.scoreSum / v.total) }))
+    .sort((a, b) => b.total - a.total);
+
+  // Score distribution buckets
+  const buckets = { '0–59': 0, '60–69': 0, '70–79': 0, '80–89': 0, '90–100': 0 };
+  results.forEach(r => {
+    const p = r.percentage || 0;
+    if (p < 60) buckets['0–59']++;
+    else if (p < 70) buckets['60–69']++;
+    else if (p < 80) buckets['70–79']++;
+    else if (p < 90) buckets['80–89']++;
+    else buckets['90–100']++;
+  });
+
+  // 30-day trend
+  const days = Array.from({ length: 30 }, (_, i) => {
+    const d = new Date(); d.setDate(d.getDate() - (29 - i)); return d;
+  });
+  const trendLabels = days.map(d => `${d.getDate()}/${d.getMonth() + 1}`);
+  const trendData   = days.map(d =>
+    results.filter(r => { const rd = new Date(r.date); return rd.toDateString() === d.toDateString(); }).length
+  );
+
+  const chartOpts = (yLabel) => ({
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { grid: { display: false }, ticks: { font: { size: 11 } } },
+      y: { beginAtZero: true, title: { display: !!yLabel, text: yLabel, font: { size: 11 } }, ticks: { font: { size: 11 }, stepSize: 1 } },
+    },
+  });
+
+  const KPI = ({ label, value, sub, color }) => (
+    <div style={{ background: 'var(--color-bg-white)', borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-sm)', padding: '20px 24px', borderTop: `3px solid ${color}` }}>
+      <p style={{ margin: '0 0 4px', fontSize: '0.75rem', fontWeight: '600', color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{label}</p>
+      <p style={{ margin: 0, fontSize: '2rem', fontWeight: '800', color }}>{value}</p>
+      {sub && <p style={{ margin: '4px 0 0', fontSize: '0.78rem', color: 'var(--color-text-muted)' }}>{sub}</p>}
+    </div>
+  );
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+      {/* KPI row */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '16px' }}>
+        <KPI label="Total Assessments" value={total} sub={`${thisMonth} this month · ${lastMonth} last month`} color="var(--color-primary)" />
+        <KPI label="Pass Rate" value={`${passRate}%`} sub={`${passed} passed · ${total - passed} failed`} color={passRate >= 70 ? 'var(--color-success)' : 'var(--color-danger)'} />
+        <KPI label="Average Score" value={`${avgScore}%`} sub={avgScore >= 70 ? 'Above pass threshold' : 'Below pass threshold'} color="var(--color-accent)" />
+        <KPI label="Certified Staff" value={passed} sub={`${total - passed} need to retake`} color="#8B5CF6" />
+      </div>
+
+      {/* Charts row */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+        {/* Score distribution */}
+        <div style={{ background: 'var(--color-bg-white)', borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-sm)', padding: '20px 24px' }}>
+          <p style={{ margin: '0 0 16px', fontWeight: '700', fontSize: '0.88rem', color: 'var(--color-text-main)' }}>Score Distribution</p>
+          <div style={{ height: '200px' }}>
+            <Bar
+              data={{
+                labels: Object.keys(buckets),
+                datasets: [{ data: Object.values(buckets), backgroundColor: ['#F43F5E', '#F59E0B', '#10B981', '#10B981', '#0D9488'], borderRadius: 6 }],
+              }}
+              options={chartOpts('Staff')}
+            />
+          </div>
+        </div>
+
+        {/* Dept pass rate */}
+        <div style={{ background: 'var(--color-bg-white)', borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-sm)', padding: '20px 24px' }}>
+          <p style={{ margin: '0 0 16px', fontWeight: '700', fontSize: '0.88rem', color: 'var(--color-text-main)' }}>Pass Rate by Department</p>
+          <div style={{ height: '200px' }}>
+            <Bar
+              data={{
+                labels: depts.map(d => d.dept),
+                datasets: [{ data: depts.map(d => d.passRate), backgroundColor: depts.map(d => d.passRate >= 70 ? '#10B98188' : '#F43F5E88'), borderRadius: 6 }],
+              }}
+              options={{ ...chartOpts('%'), scales: { ...chartOpts('%').scales, y: { ...chartOpts('%').scales.y, max: 100 } } }}
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* 30-day trend */}
+      <div style={{ background: 'var(--color-bg-white)', borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-sm)', padding: '20px 24px' }}>
+        <p style={{ margin: '0 0 16px', fontWeight: '700', fontSize: '0.88rem', color: 'var(--color-text-main)' }}>Assessments — Last 30 Days</p>
+        <div style={{ height: '180px' }}>
+          <Line
+            data={{
+              labels: trendLabels,
+              datasets: [{
+                data: trendData,
+                borderColor: '#0D9488', backgroundColor: 'rgba(13,148,136,0.08)',
+                fill: true, tension: 0.4, pointRadius: 3, pointBackgroundColor: '#0D9488',
+              }],
+            }}
+            options={chartOpts('Tests')}
+          />
+        </div>
+      </div>
+
+      {/* Department table */}
+      <div style={{ background: 'var(--color-bg-white)', borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-sm)', overflow: 'auto' }}>
+        <div style={{ padding: '16px 24px 8px', borderBottom: '1px solid var(--color-border)' }}>
+          <p style={{ margin: 0, fontWeight: '700', fontSize: '0.88rem', color: 'var(--color-text-main)' }}>Department Breakdown</p>
+        </div>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.84rem' }}>
+          <thead>
+            <tr style={{ background: 'var(--color-bg-light)' }}>
+              {['Department', 'Total Tests', 'Passed', 'Failed', 'Pass Rate', 'Avg Score'].map(h => (
+                <th key={h} style={thStyle}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {depts.map(d => (
+              <tr key={d.dept} style={{ borderTop: '1px solid var(--color-border)' }}
+                onMouseEnter={e => e.currentTarget.style.background = 'var(--color-bg-light)'}
+                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                <td style={{ ...tdStyle, fontWeight: '600', textTransform: 'capitalize' }}>{d.dept}</td>
+                <td style={tdStyle}>{d.total}</td>
+                <td style={{ ...tdStyle, color: 'var(--color-success)', fontWeight: '600' }}>{d.passed}</td>
+                <td style={{ ...tdStyle, color: d.total - d.passed > 0 ? 'var(--color-danger)' : 'var(--color-text-muted)', fontWeight: d.total - d.passed > 0 ? '600' : '400' }}>{d.total - d.passed}</td>
+                <td style={tdStyle}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <div style={{ flex: 1, height: '6px', borderRadius: '3px', background: 'var(--color-bg-light)', overflow: 'hidden', minWidth: '60px' }}>
+                      <div style={{ width: `${d.passRate}%`, height: '100%', background: d.passRate >= 70 ? 'var(--color-success)' : 'var(--color-danger)', borderRadius: '3px' }} />
+                    </div>
+                    <span style={{ fontWeight: '700', color: d.passRate >= 70 ? 'var(--color-success)' : 'var(--color-danger)', minWidth: '38px' }}>{d.passRate}%</span>
+                  </div>
+                </td>
+                <td style={{ ...tdStyle, fontWeight: '600', color: d.avg >= 70 ? 'var(--color-success)' : 'var(--color-danger)' }}>{d.avg}%</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+// ── Results Tab ─────────────────────────────────────────────────────────────
+function ResultsTab({ results, loading, source, onClear }) {
 
   const exportExcel = () => {
     if (!results.length) return;
@@ -316,7 +461,7 @@ function ResultsTab({ isAuthenticated, adminHospitalId }) {
   const clearResults = () => {
     if (!window.confirm('This will permanently delete all assessment records. Are you sure?')) return;
     localStorage.removeItem('cds_results');
-    setResults([]);
+    onClear();
   };
 
   return (
@@ -390,6 +535,11 @@ export default function AdminPage() {
   const [formData, setFormData]           = useState(null);
   const [saved, setSaved]                 = useState(false);
 
+  // ── Results state — shared between Results tab and Analytics tab ──
+  const [results, setResults]   = useState([]);
+  const [resultsLoading, setResultsLoading] = useState(false);
+  const [resultsSource, setResultsSource]   = useState('local');
+
   const handleAuthSuccess = (email) => {
     if (email.toLowerCase() === 'admin@ahmad.com') {
       setAdminHospitalId(null); // Super admin bypass
@@ -412,8 +562,9 @@ export default function AdminPage() {
     });
   }, []);
 
-  useEffect(() => { 
+  useEffect(() => {
     if (unlocked) {
+      // Load question bank
       const bankId = adminHospitalId || 'DEFAULT_MASTER_BANK';
       getHospitalQuestionsFromDb(bankId).then(cloudBank => {
         if (cloudBank) {
@@ -423,6 +574,20 @@ export default function AdminPage() {
           setQuestions(getAllRawQuestions());
         }
       });
+
+      // Load results (shared by Results tab + Analytics tab)
+      if (supabase) {
+        setResultsLoading(true);
+        getResultsFromDb(adminHospitalId)
+          .then(rows => {
+            if (rows !== null) { setResults(rows); setResultsSource('supabase'); }
+            else { setResults(JSON.parse(localStorage.getItem('cds_results') || '[]')); setResultsSource('local'); }
+          })
+          .finally(() => setResultsLoading(false));
+      } else {
+        setResults(JSON.parse(localStorage.getItem('cds_results') || '[]'));
+        setResultsSource('local');
+      }
     }
   }, [unlocked, adminHospitalId]);
 
@@ -652,9 +817,8 @@ export default function AdminPage() {
       <div style={{ display: 'flex', gap: '8px', marginBottom: '24px', flexWrap: 'wrap' }}>
         {tabBtn('questions', <List size={15} />, `Questions (${questions.length})`)}
         {tabBtn('results', <BarChart2 size={15} />, 'Results')}
+        {tabBtn('analytics', <BarChart2 size={15} />, 'Analytics')}
         {tabBtn('settings', <Settings size={15} />, 'Settings')}
-        
-        {/* Super admin only tab */}
         {adminHospitalId === null && tabBtn('hospitals', <Plus size={15} />, 'Create Hospital')}
       </div>
 
@@ -726,7 +890,8 @@ export default function AdminPage() {
         </>
       )}
 
-      {tab === 'results'   && <ResultsTab isAuthenticated={unlocked} adminHospitalId={adminHospitalId} />}
+      {tab === 'results'   && <ResultsTab results={results} loading={resultsLoading} source={resultsSource} onClear={() => setResults([])} />}
+      {tab === 'analytics' && <AnalyticsTab results={results} loading={resultsLoading} />}
       {tab === 'settings'  && <SettingsTab />}
       {tab === 'hospitals' && adminHospitalId === null && <HospitalsTab />}
     </div>
