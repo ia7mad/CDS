@@ -189,13 +189,64 @@ function SettingsTab() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', maxWidth: '580px' }}>
-      <Section title="Hospital / Facility Name">
-        <Field label="Name displayed on certificates">
+      <Section title="Hospital / Facility Name (Local Device Layer)">
+        <Field label="Name displayed on certificates (for this portal window)">
           <input value={hospitalName} onChange={e => setHospitalName(e.target.value)} style={inputStyle} placeholder="e.g. King Fahad Medical City" />
         </Field>
         <button onClick={saveSettings} style={{ ...btnStyle(settingsSaved ? 'var(--color-success)' : 'var(--color-primary)', 'white'), marginTop: '12px' }}>
           <Save size={15} /> {settingsSaved ? 'Saved ✓' : 'Save Settings'}
         </button>
+      </Section>
+    </div>
+  );
+}
+
+// ── Super Admin: Hospitals Tab ──────────────────────────────────────────────
+function HospitalsTab() {
+  const [newCode, setNewCode] = useState('');
+  const [generatedLink, setGeneratedLink] = useState('');
+  
+  const generate = () => {
+    if (!newCode.trim()) return;
+    const cleanId = newCode.trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+    const link = `https://ia7mad.github.io/CDS/?hospital=${cleanId}`;
+    setGeneratedLink(link);
+  };
+
+  const copyLink = () => {
+    navigator.clipboard.writeText(`Welcome to the Healthcare Waste Disposal Portal.\nYour dedicated hospital portal link is: ${generatedLink}`);
+    alert('Link copied to clipboard!');
+  };
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', maxWidth: '640px' }}>
+      <Section title="Onboard New Hospital">
+        <p style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)', marginBottom: '16px', lineHeight: 1.5 }}>
+          Create a unique access portal link for a new hospital. Ensure you also manually create their local admin email account (e.g. <code>admin@hospitalcode.com</code>) in the Supabase Dashboard Authentication tab so they can access their isolated results tracking.
+        </p>
+        
+        <Field label="Hospital Short Code (e.g. KFHBH)">
+          <input 
+            value={newCode} 
+            onChange={e => setNewCode(e.target.value)} 
+            style={{ ...inputStyle, textTransform: 'uppercase' }} 
+            placeholder="MNGHA" 
+          />
+        </Field>
+        
+        <button onClick={generate} style={{ ...btnStyle('var(--color-primary)', 'white'), marginTop: '14px', width: 'fit-content' }}>
+          <Plus size={15} /> Generate Custom Link
+        </button>
+
+        {generatedLink && (
+          <div style={{ marginTop: '20px', padding: '16px', background: 'rgba(13, 148, 136, 0.08)', borderRadius: 'var(--radius-md)', border: '1px solid rgba(13, 148, 136, 0.2)' }}>
+            <p style={{ fontSize: '0.8rem', fontWeight: '700', color: 'var(--color-primary)', marginBottom: '6px', textTransform: 'uppercase' }}>Portal Ready</p>
+            <p style={{ fontSize: '0.9rem', color: 'var(--color-text-main)', marginBottom: '12px', wordBreak: 'break-all', userSelect: 'all' }}>{generatedLink}</p>
+            <button onClick={copyLink} style={{ ...btnStyle('white', 'var(--color-primary)'), border: '1px solid var(--color-primary)' }}>
+              <Copy size={14} /> Copy Invite Message
+            </button>
+          </div>
+        )}
       </Section>
     </div>
   );
@@ -570,6 +621,9 @@ export default function AdminPage() {
         {tabBtn('questions', <List size={15} />, `Questions (${questions.length})`)}
         {tabBtn('results', <BarChart2 size={15} />, 'Results')}
         {tabBtn('settings', <Settings size={15} />, 'Settings')}
+        
+        {/* Super admin only tab */}
+        {adminHospitalId === null && tabBtn('hospitals', <Plus size={15} />, 'Create Hospital')}
       </div>
 
       {/* ── Questions Tab ── */}
@@ -640,8 +694,9 @@ export default function AdminPage() {
         </>
       )}
 
-      {tab === 'results'  && <ResultsTab isAuthenticated={unlocked} adminHospitalId={adminHospitalId} />}
-      {tab === 'settings' && <SettingsTab />}
+      {tab === 'results'   && <ResultsTab isAuthenticated={unlocked} adminHospitalId={adminHospitalId} />}
+      {tab === 'settings'  && <SettingsTab />}
+      {tab === 'hospitals' && adminHospitalId === null && <HospitalsTab />}
     </div>
   );
 }
