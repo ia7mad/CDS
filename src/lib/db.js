@@ -52,7 +52,7 @@ export async function getResultsFromDb(adminHospitalId = null) {
     .limit(2000);
   if (error) {
     console.error('Failed to load results from Supabase:', error.message);
-    return [];
+    return null;
   }
   return (data || []).map(r => ({
     id:             r.id,

@@ -263,7 +263,7 @@ function ResultsTab({ isAuthenticated, adminHospitalId }) {
       setLoading(true);
       getResultsFromDb(adminHospitalId)
         .then(rows => {
-          if (rows.length > 0) {
+          if (rows !== null) {
             setResults(rows);
             setSource('supabase');
           } else {
