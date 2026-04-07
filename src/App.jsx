@@ -264,7 +264,10 @@ function LandingPage() {
         </button>
 
         <button
-          onClick={() => go('/quiz')}
+          onClick={() => {
+            if (typeof window !== 'undefined' && window.sensoryInit) window.sensoryInit();
+            go('/quiz');
+          }}
           style={{
             display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px',
             padding: '22px 16px', 
@@ -298,7 +301,20 @@ function App() {
     syncPendingResults(); 
     async function initCloudBank() {
       const cloudBank = await getHospitalQuestionsFromDb(HOSPITAL_ID);
-      if (cloudBank) saveAdminQuestions(cloudBank);
+      if (cloudBank) {
+        saveAdminQuestions(cloudBank);
+        // Pre-decode massive base64 images into browser memory quietly in the background
+        // so the actual quiz has zero lag or popping when they click Start
+        cloudBank.forEach(q => {
+           if (q.imageUrl) {
+             const img = new window.Image();
+             // Simple fallback to handle base64 vs relative
+             img.src = q.imageUrl.startsWith('data:') || q.imageUrl.startsWith('http') 
+               ? q.imageUrl 
+               : import.meta.env.BASE_URL + q.imageUrl.replace(/^\//, '');
+           }
+        });
+      }
       setCloudSynced(true);
     }
     initCloudBank();

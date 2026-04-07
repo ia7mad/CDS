@@ -3,6 +3,10 @@
 // Initialize a single global AudioContext lazily to comply with browser autoplay policies
 let audioCtx = null;
 
+if (typeof window !== 'undefined') {
+  window.sensoryInit = () => { getContext(); };
+}
+
 function getContext() {
   if (!audioCtx) {
     audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -84,6 +88,9 @@ const haptics = {
 };
 
 export const sensoryEngine = {
+  init: () => {
+    getContext(); // Eagerly boot up the AudioContext on first user click
+  },
   playPickup: () => {
     synth.pickup();
     haptics.pickup();
