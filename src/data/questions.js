@@ -11,9 +11,16 @@ export const resolveImageUrl = (url) => {
   return BASE + clean.replace(/^\//, '');
 };
 
+// All department codes used for filtering
+export const ALL_DEPARTMENTS = [
+  'emergency', 'icu', 'operating', 'general', 'pediatrics',
+  'oncology', 'radiology', 'laboratory', 'pharmacy', 'outpatient', 'other',
+];
+
 export const DEFAULT_QUESTIONS = [
   {
     id: 'q1',
+    departments: ['all'],
     scenario: {
       en: 'You just finished drawing blood from a patient. You are holding the used needle attached to the syringe.',
       ar: 'لقد انتهيت للتو من سحب عينة دم من مريض. أنت تحمل الإبرة المستعملة المرفقة بالحقنة.'
@@ -32,6 +39,7 @@ export const DEFAULT_QUESTIONS = [
   },
   {
     id: 'q2',
+    departments: ['all'],
     scenario: {
       en: 'You are discarding the plastic wrapper of a new, sterile IV line that has not touched the patient.',
       ar: 'أنت تتخلص من الغلاف البلاستيكي لأنبوب وريدي جديد ومعقم لم يلامس المريض.'
@@ -50,6 +58,7 @@ export const DEFAULT_QUESTIONS = [
   },
   {
     id: 'q3',
+    departments: ['all'],
     scenario: {
       en: 'A gauze pad is heavily soaked with blood after stopping a hemorrhage.',
       ar: 'توجد ضمادة شاش مشبعة بشدة بالدم بعد إيقاف نزيف مريض.'
@@ -68,6 +77,7 @@ export const DEFAULT_QUESTIONS = [
   },
   {
     id: 'q4',
+    departments: ['pharmacy', 'icu', 'emergency', 'operating', 'oncology', 'general', 'pediatrics'],
     scenario: {
       en: 'You are disposing of a vial containing a partially used, non-hazardous antibiotic.',
       ar: 'أنت تتخلص من قارورة تحتوي على مضاد حيوي غير خطر ومستخدم جزئياً.'
@@ -86,6 +96,7 @@ export const DEFAULT_QUESTIONS = [
   },
   {
     id: 'q5',
+    departments: ['all'],
     scenario: {
       en: 'You just took off your gloves after performing a routine, non-invasive physical exam (no body fluids encountered).',
       ar: 'لقد خلعت قفازاتك للتو بعد إجراء فحص بدني روتيني غير جراحي (لم يتم مواجهة أي سوائل جسدية).'
@@ -104,6 +115,7 @@ export const DEFAULT_QUESTIONS = [
   },
   {
     id: 'q6',
+    departments: ['pharmacy', 'icu', 'emergency', 'operating', 'laboratory'],
     scenario: {
       en: 'You have a broken glass ampoule that contained normal saline.',
       ar: 'لديك أمبولة زجاجية مكسورة كانت تحتوي على محلول ملحي عادي.'
@@ -122,6 +134,7 @@ export const DEFAULT_QUESTIONS = [
   },
   {
     id: 'q7',
+    departments: ['all'],
     scenario: {
       en: 'A patient leaves behind an uneaten apple and a styrofoam cup from their lunch.',
       ar: 'ترك المريض تفاحة لم تؤكل وكوباً من الستايروفوم من غدائه.'
@@ -140,6 +153,7 @@ export const DEFAULT_QUESTIONS = [
   },
   {
     id: 'q8',
+    departments: ['all'],
     scenario: {
       en: 'You are disposing of a face mask worn during care for an infectious TB patient.',
       ar: 'أنت تتخلص من قناع وجه (كمامة) تم ارتداؤه أثناء رعاية مريض سُل معدٍ.'
@@ -158,6 +172,7 @@ export const DEFAULT_QUESTIONS = [
   },
   {
     id: 'q9',
+    departments: ['operating', 'emergency', 'icu', 'general'],
     scenario: {
       en: 'You are discarding a scalpel blade after a minor surgical procedure.',
       ar: 'أنت تتخلص من شفرة مشرط بعد إجراء عملية جراحية بسيطة.'
@@ -176,6 +191,7 @@ export const DEFAULT_QUESTIONS = [
   },
   {
     id: 'q10',
+    departments: ['icu', 'emergency', 'operating', 'general', 'pediatrics', 'oncology'],
     scenario: {
       en: 'An empty IV bag that contained 5% Dextrose in Water (D5W).',
       ar: 'كيس وريدي فارغ كان يحتوي على 5٪ ديكستروز في الماء (D5W).'
@@ -194,6 +210,7 @@ export const DEFAULT_QUESTIONS = [
   },
   {
     id: 'q11',
+    departments: ['general', 'icu', 'emergency', 'outpatient', 'pediatrics'],
     scenario: { en: 'You are a nurse in a diabetic care unit and have just administered insulin to a patient using a pen device. You need to detach the used needle.', ar: 'أنت ممرضة في وحدة رعاية مرضى السكري وقمت للتو بحقن إنسولين لمريض باستخدام قلم الحقن. تحتاج إلى فصل الإبرة المستعملة.' },
     itemName: { en: 'Insulin Pen Needle', ar: 'إبرة قلم الإنسولين' },
     itemIcon: 'syringe',
@@ -206,6 +223,7 @@ export const DEFAULT_QUESTIONS = [
   },
   {
     id: 'q12',
+    departments: ['oncology', 'pharmacy', 'icu'],
     scenario: { en: 'After completing a chemotherapy infusion, a small amount of cytotoxic drug remains in the IV bag. You need to dispose of the bag and tubing.', ar: 'بعد اكتمال جلسة العلاج الكيماوي، تبقت كمية صغيرة من الدواء السام للخلايا داخل كيس المحلول الوريدي. تحتاج إلى التخلص من الكيس والأنبوب.' },
     itemName: { en: 'Partial Chemotherapy IV Bag', ar: 'كيس محلول كيماوي متبقٍّ' },
     itemIcon: 'bag-water',
@@ -218,6 +236,7 @@ export const DEFAULT_QUESTIONS = [
   },
   {
     id: 'q13',
+    departments: ['icu', 'operating', 'general', 'emergency'],
     scenario: { en: 'You are removing a used Foley catheter and drainage bag from a patient who has been catheterized for 3 days.', ar: 'تقوم بإزالة قسطرة فولي مستعملة وكيس التصريف من مريض تم تركيب القسطرة له منذ 3 أيام.' },
     itemName: { en: 'Used Urinary Catheter & Bag', ar: 'قسطرة بولية مستعملة وكيس التصريف' },
     itemIcon: 'bag-water',
@@ -230,6 +249,7 @@ export const DEFAULT_QUESTIONS = [
   },
   {
     id: 'q14',
+    departments: ['laboratory', 'icu', 'emergency', 'general', 'outpatient', 'pediatrics'],
     scenario: { en: "You just tested a patient's blood glucose level with a finger-prick. The test strip has a small amount of the patient's blood on it.", ar: 'انتهيت للتو من قياس مستوى سكر الدم لمريض باستخدام وخز الإصبع. يوجد على شريط الاختبار كمية صغيرة من دم المريض.' },
     itemName: { en: 'Used Blood Glucose Test Strip', ar: 'شريط قياس سكر الدم المستعمل' },
     itemIcon: 'droplets',
@@ -242,6 +262,7 @@ export const DEFAULT_QUESTIONS = [
   },
   {
     id: 'q15',
+    departments: ['all'],
     scenario: { en: 'You used a paper towel to apply pressure to a venipuncture site. The towel has visible blood on it.', ar: 'استخدمت منشفة ورقية للضغط على موضع سحب الدم. على المنشفة آثار دم واضحة.' },
     itemName: { en: 'Blood-Stained Paper Towel', ar: 'منشفة ورقية ملوثة بالدم' },
     itemIcon: 'droplets',
@@ -254,6 +275,7 @@ export const DEFAULT_QUESTIONS = [
   },
   {
     id: 'q16',
+    departments: ['pharmacy', 'emergency', 'pediatrics', 'outpatient', 'general'],
     scenario: { en: 'You have just finished administering the last dose from a multi-dose flu vaccine vial. The vial is now empty.', ar: 'انتهيت للتو من إعطاء آخر جرعة من قارورة لقاح الأنفلونزا متعددة الجرعات. القارورة الآن فارغة.' },
     itemName: { en: 'Empty Vaccine Vial', ar: 'قارورة لقاح فارغة' },
     itemIcon: 'pill',
@@ -266,6 +288,7 @@ export const DEFAULT_QUESTIONS = [
   },
   {
     id: 'q17',
+    departments: ['all'],
     scenario: { en: 'You have removed a peripheral intravenous cannula (angiocath) from a patient\'s arm after it became blocked. The needle stylet was already removed at insertion.', ar: 'قمت بإزالة كانيولا وريدية طرفية من ذراع المريض بعد أن انسدت. تمت إزالة الموجِّه الإبري عند الإدخال.' },
     itemName: { en: 'Used IV Cannula (Angiocath)', ar: 'كانيولا وريدية مستعملة' },
     itemIcon: 'syringe',
@@ -278,6 +301,7 @@ export const DEFAULT_QUESTIONS = [
   },
   {
     id: 'q18',
+    departments: ['pharmacy', 'general', 'icu', 'outpatient'],
     scenario: { en: 'You have removed all tablets from a blister pack of oral antibiotics dispensed to a patient. The pack is completely empty with no residual medication.', ar: 'قمت بإخراج جميع الأقراص من علبة بليستر مضاد حيوي فموي صُرف للمريض. العلبة فارغة تماماً بلا بقايا دواء.' },
     itemName: { en: 'Empty Antibiotic Blister Pack', ar: 'علبة بليستر مضاد حيوي فارغة' },
     itemIcon: 'pill',
@@ -290,6 +314,7 @@ export const DEFAULT_QUESTIONS = [
   },
   {
     id: 'q19',
+    departments: ['laboratory', 'icu', 'emergency', 'general'],
     scenario: { en: 'A patient being investigated for pulmonary tuberculosis has provided a sputum sample in a specimen container. Testing is now complete.', ar: 'قدّم مريض يُجرى له فحص لمرض السُّل الرئوي عينة بلغم في حاوية عينات. اكتمل التحليل الآن.' },
     itemName: { en: 'Used Sputum Sample Container', ar: 'حاوية عينة بلغم مستعملة' },
     itemIcon: 'shield-alert',
@@ -302,6 +327,7 @@ export const DEFAULT_QUESTIONS = [
   },
   {
     id: 'q20',
+    departments: ['pharmacy', 'icu', 'general', 'outpatient'],
     scenario: { en: 'While checking medication storage, you discover several insulin vials that have passed their expiration date and must be disposed of.', ar: 'أثناء فحص مخزن الأدوية، اكتشفت عدة قوارير إنسولين تجاوزت تاريخ انتهاء صلاحيتها ويجب التخلص منها.' },
     itemName: { en: 'Expired Insulin Vials', ar: 'قوارير إنسولين منتهية الصلاحية' },
     itemIcon: 'pill',
@@ -314,6 +340,7 @@ export const DEFAULT_QUESTIONS = [
   },
   {
     id: 'q21',
+    departments: ['operating', 'emergency', 'icu', 'general'],
     scenario: { en: 'You assisted with a minor surgical procedure and your gloves became visibly contaminated with the patient\'s blood during the operation.', ar: 'كنت تساعد في إجراء عملية جراحية بسيطة وتلوثت قفازاتك بشكل واضح بدم المريض أثناء العملية.' },
     itemName: { en: 'Surgical Gloves (Blood-Contaminated)', ar: 'قفازات جراحية ملوثة بالدم' },
     itemIcon: 'hand',
@@ -326,6 +353,7 @@ export const DEFAULT_QUESTIONS = [
   },
   {
     id: 'q22',
+    departments: ['laboratory', 'emergency', 'icu', 'general', 'outpatient'],
     scenario: { en: 'A diabetes patient has completed their morning blood glucose check and hands you the used lancet from the lancing device.', ar: 'أجرى مريض مصاب بالسكري قياسه الصباحي لسكر الدم وأعطاك المشرط المستعمل من جهاز الوخز.' },
     itemName: { en: 'Used Blood Lancet', ar: 'مشرط وخز مستعمل' },
     itemIcon: 'syringe',
@@ -338,6 +366,7 @@ export const DEFAULT_QUESTIONS = [
   },
   {
     id: 'q23',
+    departments: ['icu', 'emergency', 'operating', 'general', 'pediatrics', 'oncology'],
     scenario: { en: 'An IV infusion of normal saline has completed. You are removing the giving set (IV tubing). The tubing has no needles attached and only contained saline.', ar: 'اكتملت جلسة تسريب محلول ملحي عادي. تقوم بإزالة طقم التسريب (أنبوب المحلول). الأنبوب لا يحتوي على إبر وكان يحتوي فقط على محلول ملحي.' },
     itemName: { en: 'IV Giving Set (Saline, No Needle)', ar: 'طقم تسريب وريدي (محلول ملحي، بدون إبرة)' },
     itemIcon: 'bag-water',
@@ -350,6 +379,7 @@ export const DEFAULT_QUESTIONS = [
   },
   {
     id: 'q24',
+    departments: ['all'],
     scenario: { en: 'You are changing the dressing on a post-operative wound that has become infected. The removed dressing is soaked with pus and wound exudate.', ar: 'تقوم بتغيير ضمادة جرح ما بعد العملية الجراحية الذي أصبح مصاباً بالعدوى. الضمادة المزالة مشبعة بالقيح وإفراز الجرح.' },
     itemName: { en: 'Infected Wound Dressing (with Pus)', ar: 'ضمادة جرح مصابة بالعدوى' },
     itemIcon: 'droplets',
@@ -362,6 +392,7 @@ export const DEFAULT_QUESTIONS = [
   },
   {
     id: 'q25',
+    departments: ['emergency', 'icu', 'operating', 'general'],
     scenario: { en: 'A blood transfusion is complete. The bag still has a small residual amount of blood inside, and the IV tubing is still attached.', ar: 'اكتمل نقل الدم. لا يزال كيس الدم يحتوي على كمية صغيرة متبقية من الدم، ولا يزال أنبوب المحلول الوريدي متصلاً به.' },
     itemName: { en: 'Used Blood Transfusion Bag', ar: 'كيس نقل الدم المستعمل' },
     itemIcon: 'droplets',
@@ -374,6 +405,7 @@ export const DEFAULT_QUESTIONS = [
   },
   {
     id: 'q26',
+    departments: ['oncology', 'pharmacy', 'icu'],
     scenario: { en: 'You are cleaning up after administering methotrexate (a cytotoxic agent). The vial still has a small residual volume of drug inside.', ar: 'تقوم بالتنظيف بعد إعطاء جرعة من الميثوتريكسات (عامل سام للخلايا). القارورة لا تزال تحتوي على حجم صغير متبقٍّ من الدواء.' },
     itemName: { en: 'Cytotoxic Drug Vial (Methotrexate)', ar: 'قارورة دواء سام للخلايا (ميثوتريكسات)' },
     itemIcon: 'pill',
@@ -386,6 +418,7 @@ export const DEFAULT_QUESTIONS = [
   },
   {
     id: 'q27',
+    departments: ['icu', 'general', 'emergency', 'operating'],
     scenario: { en: "A patient's nasogastric tube is being removed after 5 days of enteral feeding. The tube is covered in gastric secretions.", ar: 'تتم إزالة أنبوب أنفي معدي (NG) من مريض بعد 5 أيام من التغذية المعوية. الأنبوب مغطى بإفرازات المعدة.' },
     itemName: { en: 'Removed Nasogastric Tube', ar: 'أنبوب أنفي معدي مُزال' },
     itemIcon: 'bag-water',
@@ -398,6 +431,7 @@ export const DEFAULT_QUESTIONS = [
   },
   {
     id: 'q28',
+    departments: ['all'],
     scenario: { en: 'You have finished cleaning a patient\'s skin with an alcohol swab before IV insertion. The small paper wrapper from the alcohol swab is on the tray.', ar: 'انتهيت من تنظيف جلد المريض بمسحة كحول قبل إدخال الكانيولا. الغلاف الورقي الصغير لعبوة مسحة الكحول على الصينية.' },
     itemName: { en: 'Alcohol Swab Wrapper (Empty)', ar: 'غلاف مسحة الكحول الفارغ' },
     itemIcon: 'package',
@@ -410,6 +444,7 @@ export const DEFAULT_QUESTIONS = [
   },
   {
     id: 'q29',
+    departments: ['icu', 'emergency', 'general', 'operating'],
     scenario: { en: 'You have finished caring for a patient in contact isolation for a multi-drug resistant organism (MDRO). You are removing your disposable protective gown.', ar: 'انتهيت من رعاية مريض في عزل احتكاكي بسبب كائن مقاوم لمتعدد الأدوية (MDRO). تقوم بخلع الرداء الواقي المستهلك.' },
     itemName: { en: 'Contaminated Isolation Gown', ar: 'رداء عزل ملوث' },
     itemIcon: 'shield-alert',
@@ -422,6 +457,7 @@ export const DEFAULT_QUESTIONS = [
   },
   {
     id: 'q30',
+    departments: ['all'],
     scenario: { en: 'A patient\'s sterile dressing pack accidentally fell on the floor before use. Hospital policy requires any dropped sterile item to be discarded. The pack is still sealed.', ar: 'سقطت عبوة ضمادة معقمة للمريض على الأرض بشكل عرضي قبل الاستخدام. تتطلب سياسة المستشفى إتلاف أي مستلزم طبي يسقط. العبوة لا تزال مغلقة.' },
     itemName: { en: 'Dropped Sealed Sterile Pack', ar: 'عبوة معقمة مغلقة سقطت على الأرض' },
     itemIcon: 'package',
@@ -456,9 +492,18 @@ function shuffleArray(arr) {
   return a;
 }
 
-export const getQuestions = (lang = 'en', count = 10) => {
+export const getQuestions = (lang = 'en', count = 10, department = null) => {
   const activeQuestions = getAllRawQuestions();
-  const shuffled = shuffleArray(activeQuestions);
+  // Filter by department — treat missing departments field as ['all'] (backward compat)
+  const filtered = (department && department !== 'other')
+    ? activeQuestions.filter(q => {
+        const depts = q.departments || ['all'];
+        return depts.includes('all') || depts.includes(department);
+      })
+    : activeQuestions;
+  // If filtered pool is smaller than needed, fall back to full question bank
+  const pool = filtered.length >= count ? filtered : activeQuestions;
+  const shuffled = shuffleArray(pool);
   const selected = shuffled.slice(0, Math.min(count, shuffled.length));
   return selected.map(q => ({
     ...q,

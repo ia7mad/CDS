@@ -32,7 +32,23 @@ const EMPTY_QUESTION = {
   id: '', itemName: { en: '', ar: '' }, scenario: { en: '', ar: '' },
   explanation: { en: '', ar: '' }, itemIcon: 'syringe', imageUrl: '',
   category: 'general', difficulty: 'beginner', correctBin: 'general', standard: '',
+  departments: ['all'],
 };
+
+const DEPT_OPTIONS = [
+  { value: 'all',          label: 'All Departments (Universal)' },
+  { value: 'emergency',    label: 'Emergency' },
+  { value: 'icu',          label: 'ICU' },
+  { value: 'operating',    label: 'Operating Room' },
+  { value: 'general',      label: 'General Ward' },
+  { value: 'pediatrics',   label: 'Pediatrics' },
+  { value: 'oncology',     label: 'Oncology' },
+  { value: 'radiology',    label: 'Radiology' },
+  { value: 'laboratory',   label: 'Laboratory' },
+  { value: 'pharmacy',     label: 'Pharmacy' },
+  { value: 'outpatient',   label: 'Outpatient / Clinic' },
+  { value: 'other',        label: 'Other' },
+];
 
 // ── Auth Gate (email + password via Supabase) ────────────────────────────────
 function AuthGate({ onUnlock }) {
@@ -457,6 +473,38 @@ export default function AdminPage() {
           <Section title="Reference Standard">
             <Field label="WHO / MOH reference">
               <input value={formData.standard} onChange={e => set('standard', e.target.value)} style={inputStyle} placeholder="e.g. WHO Guidelines Ch. 7, MOH Safety Protocol A.1" />
+            </Field>
+          </Section>
+          <Section title="Applicable Departments">
+            <Field label="Show this question to staff from">
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', paddingTop: '4px' }}>
+                {DEPT_OPTIONS.map(opt => {
+                  const depts = formData.departments || ['all'];
+                  const checked = opt.value === 'all'
+                    ? depts.includes('all')
+                    : !depts.includes('all') && depts.includes(opt.value);
+                  const toggle = () => {
+                    if (opt.value === 'all') {
+                      set('departments', ['all']);
+                    } else {
+                      const current = depts.includes('all') ? [] : [...depts];
+                      const next = current.includes(opt.value)
+                        ? current.filter(d => d !== opt.value)
+                        : [...current, opt.value];
+                      set('departments', next.length ? next : ['all']);
+                    }
+                  };
+                  return (
+                    <label key={opt.value} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '5px 12px', borderRadius: 'var(--radius-full)', border: `1.5px solid ${checked ? 'var(--color-primary)' : 'var(--color-border)'}`, background: checked ? 'var(--color-primary)' + '18' : 'var(--color-bg-light)', cursor: 'pointer', fontSize: '0.82rem', fontWeight: checked ? '600' : '400', color: checked ? 'var(--color-primary)' : 'var(--color-text-muted)', userSelect: 'none' }}>
+                      <input type="checkbox" checked={checked} onChange={toggle} style={{ display: 'none' }} />
+                      {opt.label}
+                    </label>
+                  );
+                })}
+              </div>
+              <p style={{ margin: '8px 0 0', fontSize: '0.76rem', color: 'var(--color-text-muted)' }}>
+                Select "All Departments" for universal questions (sharps, general hygiene). Select specific departments for role-specific items (e.g. chemo bags for Oncology only).
+              </p>
             </Field>
           </Section>
           <Section title="Live Preview">

@@ -70,7 +70,7 @@ export default function QuizPage() {
       return { ...saved, isRestoring: true };
     }
     return {
-      questions: shuffle(getQuestions(i18n.language)),
+      questions: shuffle(getQuestions(i18n.language, 10, userInfo.department)),
       currentIndex: 0,
       selectedBin: null,
       showFeedback: false,
