@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { saveResultToDb, addToPendingQueue } from '../../lib/db';
+import { saveResultToDb, addToPendingQueue, saveQuestionAttemptsToDb } from '../../lib/db';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { CheckCircle2, XCircle, RotateCcw, Award, Trophy, ChevronDown, ChevronUp, Star, Clock, BookOpen, CreditCard } from 'lucide-react';
@@ -12,7 +12,7 @@ import {
 } from 'chart.js';
 import { Bar } from 'react-chartjs-2';
 import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
+import { toPng } from 'html-to-image';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Tooltip);
 
@@ -74,6 +74,7 @@ export default function ResultsScreen({ score, questionResults, totalQuestions, 
     saveResultToDb(resultRecord).then(ok => {
       if (!ok) addToPendingQueue(resultRecord);
     });
+    saveQuestionAttemptsToDb(questionResults);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const issueDate = new Date();
@@ -117,24 +118,17 @@ export default function ResultsScreen({ score, questionResults, totalQuestions, 
       const CERT_W = 1122;
       const CERT_H = 793;
 
-      const canvas = await html2canvas(template, {
-        scale: 2,
-        useCORS: true,
-        allowTaint: false,
-        logging: false,
+      const imgData = await toPng(template, {
+        pixelRatio: 2,
         backgroundColor: '#ffffff',
         width: CERT_W,
         height: CERT_H,
-        windowWidth: CERT_W,
-        windowHeight: CERT_H,
-        ignoreElements: (el) =>
-          el.tagName === 'CANVAS' && el.id !== 'certificate-template',
+        style: { transform: 'scale(1)', transformOrigin: 'top left' },
+        filter: (el) => el.tagName !== 'CANVAS' || el.id === 'certificate-template',
       });
 
       template.style.visibility = 'hidden';
       template.style.opacity = '0';
-
-      const imgData = canvas.toDataURL('image/png');
       const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
       const pdfWidth = pdf.internal.pageSize.getWidth();
       const pdfHeight = pdf.internal.pageSize.getHeight();
@@ -165,16 +159,12 @@ export default function ResultsScreen({ score, questionResults, totalQuestions, 
       const CARD_H = 540;  // 54mm  × 10px/mm
 
       const captureOpts = {
-        scale: 2,
-        useCORS: true,
-        allowTaint: false,
-        logging: false,
+        pixelRatio: 2,
         backgroundColor: '#ffffff',
         width: CARD_W,
         height: CARD_H,
-        windowWidth: CARD_W,
-        windowHeight: CARD_H,
-        ignoreElements: (el) => el.tagName === 'CANVAS',
+        style: { transform: 'scale(1)', transformOrigin: 'top left' },
+        filter: (el) => el.tagName !== 'CANVAS',
       };
 
       // Show both for capture
@@ -182,17 +172,17 @@ export default function ResultsScreen({ score, questionResults, totalQuestions, 
       back.style.visibility  = 'visible'; back.style.opacity  = '1';
       await new Promise(r => setTimeout(r, 100));
 
-      const frontCanvas = await html2canvas(front, captureOpts);
-      const backCanvas  = await html2canvas(back,  captureOpts);
+      const frontImgData = await toPng(front, captureOpts);
+      const backImgData  = await toPng(back,  captureOpts);
 
       front.style.visibility = 'hidden'; front.style.opacity = '0';
       back.style.visibility  = 'hidden'; back.style.opacity  = '0';
 
       // Credit card size in mm: 85.6 × 54, landscape
       const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: [54, 85.6] });
-      pdf.addImage(frontCanvas.toDataURL('image/png'), 'PNG', 0, 0, 85.6, 54);
+      pdf.addImage(frontImgData, 'PNG', 0, 0, 85.6, 54);
       pdf.addPage([54, 85.6], 'landscape');
-      pdf.addImage(backCanvas.toDataURL('image/png'),  'PNG', 0, 0, 85.6, 54);
+      pdf.addImage(backImgData,  'PNG', 0, 0, 85.6, 54);
 
       pdf.save(`HWDT-WalletCard-${userInfo.name || 'Participant'}.pdf`);
     } catch (err) {
