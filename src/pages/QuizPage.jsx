@@ -421,8 +421,8 @@ export default function QuizPage() {
 
       <div style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(4, 1fr)',
-        gap: window.innerWidth < 500 ? '6px' : '14px',
+        gridTemplateColumns: window.innerWidth < 500 ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)',
+        gap: window.innerWidth < 500 ? '12px' : '14px',
         marginBottom: '24px',
       }}>
         {wasteCategories.map((bin) => (
