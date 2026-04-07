@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
-import { syncPendingResults } from './lib/db';
+import { syncPendingResults, getHospitalQuestionsFromDb } from './lib/db';
+import { saveAdminQuestions } from './data/questions';
+import { HOSPITAL_ID } from './lib/supabase';
 import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import QuizPage from './pages/QuizPage';
@@ -288,8 +290,27 @@ function LandingPage() {
 }
 
 function App() {
+  const [cloudSynced, setCloudSynced] = useState(false);
+
   // Silently retry any quiz results that failed to sync while offline
-  useEffect(() => { syncPendingResults(); }, []);
+  // AND dynamically fetch the hospital's specific question bank from the cloud
+  useEffect(() => { 
+    syncPendingResults(); 
+    async function initCloudBank() {
+      const cloudBank = await getHospitalQuestionsFromDb(HOSPITAL_ID);
+      if (cloudBank) saveAdminQuestions(cloudBank);
+      setCloudSynced(true);
+    }
+    initCloudBank();
+  }, []);
+
+  if (!cloudSynced) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--color-bg-light)' }}>
+        <p style={{ color: 'var(--color-primary)', fontWeight: '600', fontSize: '0.9rem', animation: 'pulse 1.5s infinite' }}>Establishing Secure Connection…</p>
+      </div>
+    );
+  }
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>

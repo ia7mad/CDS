@@ -69,6 +69,40 @@ export async function getResultsFromDb(adminHospitalId = null) {
   }));
 }
 
+// ── Question Bank Cloud Sync ──────────────────────────────────────────────────
+export async function getHospitalQuestionsFromDb(hospitalId) {
+  if (!supabase) return null;
+  try {
+    const { data, error } = await supabase
+      .from('hospital_configs')
+      .select('questions_jsonb')
+      .eq('hospital_id', hospitalId)
+      .single();
+    if (error) return null;
+    return data?.questions_jsonb || null;
+  } catch (e) {
+    return null;
+  }
+}
+
+export async function saveHospitalQuestionsToDb(hospitalId, questions) {
+  if (!supabase) return false;
+  try {
+    const { error } = await supabase
+      .from('hospital_configs')
+      .upsert({
+        hospital_id: hospitalId,
+        questions_jsonb: questions,
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'hospital_id' });
+    if (error) throw error;
+    return true;
+  } catch (e) {
+    console.error('Failed to sync questions to cloud:', e);
+    return false;
+  }
+}
+
 // ── addToPendingQueue ─────────────────────────────────────────────────────────
 // Saves a result to the local pending-sync queue so it can be retried later.
 export function addToPendingQueue(result) {

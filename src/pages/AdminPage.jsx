@@ -4,7 +4,7 @@ import { Plus, Edit2, Trash2, Save, RotateCcw, Download, Upload, X, Image, Arrow
 import { useNavigate } from 'react-router-dom';
 import * as XLSX from 'xlsx';
 import { supabase } from '../lib/supabase';
-import { getResultsFromDb } from '../lib/db';
+import { getResultsFromDb, saveHospitalQuestionsToDb, getHospitalQuestionsFromDb } from '../lib/db';
 
 const HOSPITAL_KEY = 'cds_hospital_name';
 
@@ -119,7 +119,23 @@ function ImagePicker({ value, onChange }) {
   const loadFile = (file) => {
     if (!file || !file.type.startsWith('image/')) return;
     const reader = new FileReader();
-    reader.onload = (e) => onChange(e.target.result);
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        let { width, height } = img;
+        const MAX = 400; // Cloud optimization
+        if (width > MAX || height > MAX) {
+          if (width > height) { height *= MAX / width; width = MAX; } 
+          else { width *= MAX / height; height = MAX; }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width; canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+        onChange(canvas.toDataURL('image/jpeg', 0.82));
+      };
+      img.src = e.target.result;
+    };
     reader.readAsDataURL(file);
   };
   const handleFilePick = (e) => loadFile(e.target.files[0]);
@@ -396,7 +412,19 @@ export default function AdminPage() {
     });
   }, []);
 
-  useEffect(() => { if (unlocked) setQuestions(getAllRawQuestions()); }, [unlocked]);
+  useEffect(() => { 
+    if (unlocked) {
+      const bankId = adminHospitalId || 'DEFAULT_MASTER_BANK';
+      getHospitalQuestionsFromDb(bankId).then(cloudBank => {
+        if (cloudBank) {
+          setQuestions(cloudBank);
+          saveAdminQuestions(cloudBank);
+        } else {
+          setQuestions(getAllRawQuestions());
+        }
+      });
+    }
+  }, [unlocked, adminHospitalId]);
 
   const handleSignOut = async () => {
     if (supabase) await supabase.auth.signOut();
@@ -417,10 +445,14 @@ export default function AdminPage() {
   const set = (key, val) => setFormData(f => ({ ...f, [key]: val }));
   const setL10n = (key, lang, val) => setFormData(f => ({ ...f, [key]: { ...f[key], [lang]: val } }));
 
-  const persistQuestions = (updated) => {
+  const persistQuestions = async (updated) => {
     try {
-      saveAdminQuestions(updated);
+      saveAdminQuestions(updated); // Save to local browser cache immediately
       setQuestions(updated);
+      
+      const bankId = adminHospitalId || 'DEFAULT_MASTER_BANK';
+      await saveHospitalQuestionsToDb(bankId, updated); // Sync to cloud
+      
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
     } catch (e) {
