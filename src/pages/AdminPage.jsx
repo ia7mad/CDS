@@ -62,12 +62,12 @@ function AuthGate({ onUnlock }) {
     if (!supabase) { setError('Backend not configured. Contact your administrator.'); return; }
     setLoading(true);
     setError('');
-    const { error: authError } = await supabase.auth.signInWithPassword({ email, password });
+    const { data, error: authError } = await supabase.auth.signInWithPassword({ email, password });
     setLoading(false);
     if (authError) {
       setError('Invalid email or password.');
     } else {
-      onUnlock();
+      onUnlock(data.session.user.email);
     }
   };
 
@@ -202,7 +202,7 @@ function SettingsTab() {
 }
 
 // ── Results Tab ─────────────────────────────────────────────────────────────
-function ResultsTab({ isAuthenticated }) {
+function ResultsTab({ isAuthenticated, adminHospitalId }) {
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
   const [source, setSource]   = useState('local');
@@ -210,7 +210,7 @@ function ResultsTab({ isAuthenticated }) {
   useEffect(() => {
     if (isAuthenticated && supabase) {
       setLoading(true);
-      getResultsFromDb()
+      getResultsFromDb(adminHospitalId)
         .then(rows => {
           if (rows.length > 0) {
             setResults(rows);
@@ -315,6 +315,7 @@ function ResultsTab({ isAuthenticated }) {
 export default function AdminPage() {
   const navigate = useNavigate();
   const [unlocked, setUnlocked]           = useState(false);
+  const [adminHospitalId, setAdminHospitalId] = useState(null);
   const [checkingSession, setCheckingSession] = useState(true);
   const [tab, setTab]                     = useState('questions');
   const [questions, setQuestions]         = useState([]);
@@ -322,11 +323,24 @@ export default function AdminPage() {
   const [formData, setFormData]           = useState(null);
   const [saved, setSaved]                 = useState(false);
 
+  const handleAuthSuccess = (email) => {
+    if (email.toLowerCase() === 'admin@ahmad.com') {
+      setAdminHospitalId(null); // Super admin bypass
+    } else {
+      const domain = email.split('@')[1];
+      const hostId = domain ? domain.split('.')[0].toUpperCase() : 'UNKNOWN';
+      setAdminHospitalId(hostId);
+    }
+    setUnlocked(true);
+  };
+
   // Check for an existing Supabase session on mount (auto-login if token is still valid)
   useEffect(() => {
     if (!supabase) { setCheckingSession(false); return; }
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) setUnlocked(true);
+      if (session && session.user && session.user.email) {
+        handleAuthSuccess(session.user.email);
+      }
       setCheckingSession(false);
     });
   }, []);
@@ -346,7 +360,7 @@ export default function AdminPage() {
     );
   }
 
-  if (!unlocked) return <AuthGate onUnlock={() => setUnlocked(true)} />;
+  if (!unlocked) return <AuthGate onUnlock={(email) => handleAuthSuccess(email)} />;
 
   // ── Helpers ──
   const set = (key, val) => setFormData(f => ({ ...f, [key]: val }));
@@ -542,7 +556,7 @@ export default function AdminPage() {
         <div>
           <h2 style={{ fontSize: '1.5rem', color: 'var(--color-primary-dark)', margin: 0 }}>Admin Panel</h2>
           <p style={{ fontSize: '0.82rem', color: 'var(--color-text-muted)', margin: '4px 0 0' }}>
-            {localStorage.getItem(HOSPITAL_KEY) || 'HWDT'} · {questions.length} questions in bank
+            {adminHospitalId ? `Viewing records for: [${adminHospitalId}]` : '🌟 Super Admin Mode (All Records)'} · {questions.length} questions in bank
           </p>
         </div>
         <div style={{ display: 'flex', gap: '8px' }}>
@@ -626,7 +640,7 @@ export default function AdminPage() {
         </>
       )}
 
-      {tab === 'results'  && <ResultsTab isAuthenticated={unlocked} />}
+      {tab === 'results'  && <ResultsTab isAuthenticated={unlocked} adminHospitalId={adminHospitalId} />}
       {tab === 'settings' && <SettingsTab />}
     </div>
   );

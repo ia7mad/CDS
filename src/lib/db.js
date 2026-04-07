@@ -36,11 +36,18 @@ export async function saveResultToDb(result) {
 // Loads all results for this hospital from Supabase (RLS filters by hospital).
 // Returns camelCase objects matching the shape the rest of the UI already uses.
 // Returns [] on any error.
-export async function getResultsFromDb() {
+export async function getResultsFromDb(adminHospitalId = null) {
   if (!supabase) return [];
-  const { data, error } = await supabase
-    .from('quiz_results')
-    .select('*')
+  
+  let query = supabase.from('quiz_results').select('*');
+  
+  // If a specific hospital ID is provided, filter by it. 
+  // If null, it means it's a super-admin and pulls all records.
+  if (adminHospitalId) {
+    query = query.eq('hospital_id', adminHospitalId);
+  }
+
+  const { data, error } = await query
     .order('date', { ascending: false })
     .limit(2000);
   if (error) {
