@@ -253,11 +253,13 @@ function HospitalsTab() {
 
   const confirmKey = async () => {
     setKeyError('');
+    const headers = { 'apikey': serviceKey, 'Authorization': `Bearer ${serviceKey}`, 'Content-Type': 'application/json' };
     try {
-      const res = await fetch(`${SUPABASE_URL}/auth/v1/admin/users?page=1&per_page=1`, { headers: adminHeaders });
+      const res = await fetch(`${SUPABASE_URL}/auth/v1/admin/users?page=1&per_page=1`, { headers });
       if (res.ok) {
         setKeyConfirmed(true);
-        loadHospitals();
+        // loadHospitals needs the key — call it after state settles
+        setTimeout(() => loadHospitals(), 50);
       } else {
         setKeyError('Invalid key — got ' + res.status + '. Use your project Service Role key from Supabase → Settings → API.');
       }
@@ -268,9 +270,39 @@ function HospitalsTab() {
 
   const loadHospitals = async () => {
     setHospitalsLoading(true);
-    const rows = await getAllHospitalsFromDb();
-    setHospitals(rows);
-    setHospitalsLoading(false);
+    try {
+      // 1. Fetch all auth users via service role key — source of truth for hospital list
+      const headers = { 'apikey': serviceKey, 'Authorization': `Bearer ${serviceKey}`, 'Content-Type': 'application/json' };
+      const res = await fetch(`${SUPABASE_URL}/auth/v1/admin/users?page=1&per_page=1000`, { headers });
+      const { users = [] } = await res.json();
+
+      // Keep only hospital admins (those with app_metadata.hospital_id, not super_admin)
+      const hospitalUsers = users.filter(u => u.app_metadata?.hospital_id && u.app_metadata?.role !== 'super_admin');
+
+      // 2. Fetch hospital_configs metadata (names etc.) — may be empty for some hospitals
+      const configs = await getAllHospitalsFromDb(); // uses anon client; fine with RLS now seeded
+      const configMap = Object.fromEntries(configs.map(c => [c.hospital_id, c]));
+
+      // 3. Merge: each hospital = auth user row + config row
+      const merged = hospitalUsers.map(u => {
+        const hid = u.app_metadata.hospital_id;
+        const cfg = configMap[hid] || {};
+        return {
+          hospital_id:   hid,
+          hospital_name: cfg.hospital_name || '',
+          admin_email:   u.email,
+          updated_at:    cfg.updated_at || u.created_at,
+        };
+      });
+
+      // Deduplicate by hospital_id (one admin per hospital)
+      const seen = new Set();
+      setHospitals(merged.filter(h => { if (seen.has(h.hospital_id)) return false; seen.add(h.hospital_id); return true; }));
+    } catch (err) {
+      console.error('Failed to load hospitals:', err);
+    } finally {
+      setHospitalsLoading(false);
+    }
   };
 
   // ── Create hospital ──
