@@ -330,7 +330,19 @@ function HospitalsTab() {
       const createData = await createRes.json();
       if (!createRes.ok) throw new Error(createData.msg || createData.message || 'Failed to create user.');
 
-      // 2. Save hospital metadata (name + email) to hospital_configs
+      // 2. Insert into hospitals table (FK dependency for quiz_results inserts)
+      //    Must use service role key to bypass RLS (hospitals has no anon INSERT policy)
+      const hospitalInsertRes = await fetch(`${SUPABASE_URL}/rest/v1/hospitals`, {
+        method: 'POST',
+        headers: { ...adminHeaders, 'Prefer': 'resolution=ignore-duplicates' },
+        body: JSON.stringify({ id: cleanCode, name: name.trim() }),
+      });
+      if (!hospitalInsertRes.ok && hospitalInsertRes.status !== 409) {
+        const d = await hospitalInsertRes.json().catch(() => ({}));
+        console.warn('hospitals insert warning:', d);
+      }
+
+      // 3. Save hospital metadata (name + email) to hospital_configs
       await saveHospitalMetaToDb(cleanCode, { hospitalName: name.trim(), adminEmail: email.trim() });
 
       const link = `https://ia7mad.github.io/CDS/?hospital=${cleanCode}`;
