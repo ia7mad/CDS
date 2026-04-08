@@ -58,10 +58,8 @@ function Navbar() {
   );
 }
 
-function Footer() {
+function Footer({ hospitalName }) {
   const { t } = useTranslation();
-  const hospitalName = localStorage.getItem('cds_hospital_name') || '';
-
   return (
     <footer style={{
       borderTop: '1px solid rgba(255, 255, 255, 0.3)',
@@ -301,6 +299,12 @@ function preloadImageUrls(urls) {
 }
 
 function App() {
+  // Initialise from localStorage so the footer shows instantly on repeat visits,
+  // then overwrite with whatever the cloud config says.
+  const [hospitalName, setHospitalName] = useState(
+    () => localStorage.getItem('cds_hospital_name') || ''
+  );
+
   useEffect(() => {
     // 1. Preload bin images immediately — these appear on every quiz question
     preloadImageUrls([
@@ -319,16 +323,16 @@ function App() {
       const cloudBank = await getHospitalQuestionsFromDb(HOSPITAL_ID);
       if (cloudBank) {
         saveAdminQuestions(cloudBank);
-        // Preload any images that differ from the local bank
         preloadImageUrls(cloudBank.map(q => q.imageUrl));
       }
     }
     syncCloudBank();
 
-    // Load hospital display name from cloud config
+    // 4. Load hospital display name from cloud — updates footer reactively
     getHospitalConfigFromDb(HOSPITAL_ID).then(cfg => {
       if (cfg?.hospital_name) {
         localStorage.setItem('cds_hospital_name', cfg.hospital_name);
+        setHospitalName(cfg.hospital_name);
       }
     });
   }, []);
@@ -345,7 +349,7 @@ function App() {
           <Route path="*"      element={<Navigate to="/" replace />} />
         </Routes>
       </main>
-      <Footer />
+      <Footer hospitalName={hospitalName} />
     </div>
   );
 }
